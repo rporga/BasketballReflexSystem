@@ -54,3 +54,10 @@ console.log('SCHEDULE SHAPE '+JSON.stringify({
     }))
   }:null
 }).slice(0,900));
+
+
+console.log('SCHEDULE EVENTS '+JSON.stringify((schedule.events || []).slice(0,3).map(e=>({
+  id:e.id,date:e.date,status:e.status,competitions:e.competitions?.slice(0,1).map(c=>({
+    status:c.status,competitors:c.competitors?.map(s=>({name:s.team?.abbreviation,score:s.score,homeAway:s.homeAway}))
+  }))
+}))).slice(0,2000));
