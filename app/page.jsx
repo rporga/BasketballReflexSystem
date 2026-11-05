@@ -1,0 +1,168 @@
+'use client';
+
+import {useEffect,useState} from 'react';
+
+const POLL=30000;
+function dateET() {
+  const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+  return p.year+p.month+p.day;
+}
+function dateShift(d,step) {
+  const x=new Date(d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8)+'T12:00:00Z');
+  x.setUTCDate(x.getUTCDate()+step);
+  return x.toISOString().slice(0,10).replaceAll('-','');
+}
+function dateLabel(d) {
+  return new Date(d.slice(0,4)+'-'+d.slice(4,6)+'-'+d.slice(6,8)+'T12:00:00Z').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+}
+function api(view,params={}) {
+  return '/api/nba?'+new URLSearchParams({view,...params}).toString();
+}
+function useRemote(url,interval=0) {
+  const [state,setState]=useState({data:null,loading:!!url,error:''});
+  const [revision,setRevision]=useState(0);
+  useEffect(()=>{
+    if(!url) {setState({data:null,loading:false,error:''});return;}
+    let mounted=true,controller=null;
+    async function load() {
+      controller?.abort();
+      controller=new AbortController();
+      try {
+        const response=await fetch(url,{cache:'no-store',signal:controller.signal});
+        const body=await response.json();
+        if(!response.ok) throw new Error(body.error || 'Request failed');
+        if(mounted) setState({data:body,loading:false,error:''});
+      } catch(e) {
+        if(e.name!=='AbortError' && mounted) setState(s=>({...s,loading:false,error:e.message}));
+      }
+    }
+    setState({data:null,loading:true,error:''});
+    load();
+    const timer=interval?setInterval(()=>{if(document.visibilityState==='visible')load();},interval):null;
+    return ()=>{mounted=false;controller?.abort();if(timer)clearInterval(timer);};
+  },[url,interval,revision]);
+  return {...state,refresh:()=>setRevision(v=>v+1)};
+}
+function Logo({team,size=36}) {
+  return team?.logo?<img src={team.logo} alt="" className="team-logo" style={{width:size,height:size}}/>:<span className="team-fallback">{team?.abbreviation || 'NBA'}</span>;
+}
+function Notice({children,error,retry}) {
+  return <div className={'notice'+(error?' notice-error':'')}><span>{children}</span>{retry&&<button onClick={retry}>Retry ↻</button>}</div>;
+}
+function Badge({status,text}) {
+  return <span className={'badge '+(status==='in'?'live':status==='post'?'final':'upcoming')}><i/>{status==='in'?'LIVE · ':''}{text || (status==='post'?'Final':'Scheduled')}</span>;
+}
+function GameCard({game,selected,click}) {
+  return <button className={'game-card '+(selected?'selected':'')} onClick={click}>
+    <div className="game-card-top"><Badge status={game.status} text={game.statusName}/><span>{game.start?new Date(game.start).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'TBC'}</span></div>
+    {[game.away,game.home].map((t,i)=><div className="game-line" key={i}><Logo team={t}/><div><strong>{t?.abbreviation || '—'}</strong><small>{t?.record}</small></div><b>{t?.score ?? '—'}</b></div>)}
+    <div className="game-card-foot">{game.venue || 'NBA GAME'}<span>VIEW BOX SCORE ↗</span></div>
+  </button>;
+}
+function Boxscore({selected,feed}) {
+  const [side,setSide]=useState('away');
+  useEffect(()=>setSide('away'),[selected?.id]);
+  if(!selected)return <div className="panel padded"><Notice>Select a game to see the full boxscore.</Notice></div>;
+  const team=selected[side];
+  const group=feed.data?.players?.find(x=>x.team?.id===team?.id || x.team?.abbreviation===team?.abbreviation);
+  const cols=['MIN','PTS','REB','AST','FG','3PT','STL','BLK','+/-'].filter(c=>group?.columns?.includes(c));
+  if(!cols.length && group)cols.push(...group.columns.slice(0,8));
+  const teamStat=feed.data?.teamStats?.find(x=>x.team?.id===team?.id);
+  return <section className="panel padded boxscore">
+    <div className="heading-row"><div><span className="eyebrow">GAME DETAILS</span><h2>{selected.away?.name} <span className="muted">at</span> {selected.home?.name}</h2></div><Badge status={selected.status} text={selected.statusName}/></div>
+    <div className="big-score"><div><Logo team={selected.away} size={56}/><strong>{selected.away?.name}</strong><b>{selected.away?.score ?? '—'}</b></div><span>@</span><div><Logo team={selected.home} size={56}/><strong>{selected.home?.name}</strong><b>{selected.home?.score ?? '—'}</b></div></div>
+    <div className="quarter-box"><div className="quarter-row table-head"><span>TEAM</span>{[1,2,3,4].map(q=><span key={q}>Q{q}</span>)}<span>TOTAL</span></div>{[selected.away,selected.home].map((t,i)=><div className="quarter-row" key={i}><b>{t?.abbreviation}</b>{[0,1,2,3].map(q=><span key={q}>{t?.linescores?.[q] ?? '—'}</span>)}<b>{t?.score ?? '—'}</b></div>)}</div>
+    <div className="separator"/>
+    <div className="heading-row"><h3>Live player boxscore</h3><div className="segmented">{['away','home'].map(s=><button key={s} className={side===s?'active':''} onClick={()=>setSide(s)}>{selected[s]?.abbreviation}</button>)}</div></div>
+    {feed.loading && <Notice>Loading player statistics…</Notice>}
+    {feed.error && <Notice error retry={feed.refresh}>Couldn't load the player boxscore: {feed.error}</Notice>}
+    {!feed.loading && !feed.error && !group?.rows?.length && <Notice>Player boxscore data isn't available yet. It usually appears around tip-off.</Notice>}
+    {!!group?.rows?.length && <div className="table-scroll"><table className="box-table"><thead><tr><th>PLAYER</th>{cols.map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>{group.rows.map((r,i)=><tr key={r.id||i}><td><strong>{r.name}</strong><small>{r.position}{r.jersey?' · #'+r.jersey:''}{r.didNotPlay?' · DNP':''}</small></td>{cols.map(c=><td key={c}>{r.stats[c] ?? '—'}</td>)}</tr>)}</tbody></table></div>}
+    {!!teamStat?.stats?.length && <><div className="separator"/><h3>Team game statistics · {team?.abbreviation}</h3><div className="stat-grid">{teamStat.stats.slice(0,12).map((s,i)=><div key={i}><span>{s.label}</span><b>{s.value}</b></div>)}</div></>}
+    <p className="smallprint">ESPN game feed. Scoreboard and boxscores refresh every 30 seconds while the page is open. Actual publication delays vary.</p>
+  </section>;
+}
+function Games({date,setDate,score,gameId,setGameId,detail}) {
+  const games=score.data?.games || [];
+  useEffect(()=>{
+    setGameId(prev=>games.some(g=>g.id===prev)?prev:(games.find(g=>g.status==='in') || games[0])?.id || '');
+  },[score.data?.fetchedAt,date]);
+  const chosen=games.find(g=>g.id===gameId);
+  const live=games.filter(g=>g.status==='in').length;
+  return <><div className="title-row"><div><span className="eyebrow">LIVE NBA INTELLIGENCE</span><h1>Games &amp; <em>boxscores.</em></h1><p>Live scores, quarter scoring, team performance and real player boxscores.</p></div><button className="action" onClick={score.refresh}>↻ Refresh</button></div>
+    <div className="date-nav"><button onClick={()=>setDate(d=>dateShift(d,-1))} aria-label="Previous date">←</button><div><small>NBA DATE · US EASTERN</small><strong>{dateLabel(date)}</strong></div><button onClick={()=>setDate(d=>dateShift(d,1))} aria-label="Next date">→</button><button onClick={()=>setDate(dateET())}>Today</button><span>{score.data ? (live ? live+' LIVE · ' : '') + games.length + ' games' : 'Waiting for feed'}</span></div>
+    {score.loading && <Notice>Fetching the real NBA scoreboard…</Notice>}
+    {score.error && <Notice error retry={score.refresh}>Unable to fetch games: {score.error}</Notice>}
+    {!score.loading && !score.error && !games.length && <Notice>No NBA games were returned for this date. Choose another day.</Notice>}
+    {!!games.length && <div className="games-grid">{games.map(g=><GameCard key={g.id} game={g} selected={g.id===gameId} click={()=>setGameId(g.id)}/>)}</div>}
+    <Boxscore selected={chosen} feed={detail}/>
+  </>;
+}
+function Form({data,loading,error,retry}) {
+  if(loading)return <Notice>Loading recent completed games…</Notice>;
+  if(error)return <Notice error retry={retry}>{error}</Notice>;
+  if(!data?.results?.length)return <Notice>Recent regular-season results haven't been returned by this source.</Notice>;
+  return <><div className="mini-kpis"><div><small>LAST 5 RECORD</small><strong>{data.last5?data.last5.wins+'–'+(data.last5.games-data.last5.wins):'—'}</strong></div><div><small>PTS / GAME</small><strong>{data.last5?.ppg ?? '—'}</strong></div><div><small>OPP PPG</small><strong>{data.last5?.oppg ?? '—'}</strong></div></div>
+    <div className="results">{data.results.map((r,i)=><div key={i}><span className={r.won?'win':'loss'}>{r.won?'W':'L'}</span><span>{r.home?'vs ':'@ '}{r.opponent}</span><b>{r.scored}–{r.allowed}</b><small>{r.date?new Date(r.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):''}</small></div>)}</div></>;
+}
+function Matchup({teams,home,setHome,away,setAway,first,second}) {
+  const a=teams.find(x=>x.id===home),b=teams.find(x=>x.id===away);
+  const edgeA=first.data?.last5 ? +(first.data.last5.ppg-first.data.last5.oppg).toFixed(1) : null;
+  const edgeB=second.data?.last5 ? +(second.data.last5.ppg-second.data.last5.oppg).toFixed(1) : null;
+  return <><div className="title-row"><div><span className="eyebrow">MATCHUP RESEARCH LAB</span><h1>Follow <em>the evidence.</em></h1><p>Compare real recent results from two NBA teams. No fabricated win probabilities.</p></div></div>
+    <section className="panel padded"><div className="heading-row"><h2>Pick your matchup</h2><small className="muted">Most recent 10 completed regular-season games</small></div><div className="team-pickers"><label>HOME TEAM<select value={home} onChange={e=>{setHome(e.target.value);if(e.target.value===away)setAway(home);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><span>VS</span><label>AWAY TEAM<select value={away} onChange={e=>{setAway(e.target.value);if(e.target.value===home)setHome(away);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label></div></section>
+    <div className="compare-grid">{[[a,first,'HOME'],[b,second,'AWAY']].map(([team,feed,side])=><div className="panel padded" key={side}><div className="team-heading"><Logo team={team} size={48}/><div><span className="eyebrow">{side}</span><h2>{team?.name || 'Choose team'}</h2></div></div><Form data={feed.data} loading={feed.loading} error={feed.error} retry={feed.refresh}/></div>)}</div>
+    <div className="panel padded"><span className="eyebrow">HISTORICAL COMPARISON — NOT A PREDICTION</span><h2>Last-five point differential</h2><div className="diff-grid">{[[a,edgeA],[b,edgeB]].map(([t,v],i)=><div key={i}><span>{t?.abbreviation || '—'}</span><strong>{v==null?'—':(v>0?'+':'')+v.toFixed(1)}</strong></div>)}</div><p className="explainer">Points scored minus points allowed per game across the five latest completed games returned by ESPN. This is descriptive evidence, not a validated prediction model.</p></div>
+  </>;
+}
+function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,stats}) {
+  const selectedTeam=teams.find(t=>t.id===teamId);
+  const players=roster.data?.players || [];
+  useEffect(()=>{setPlayerId(old=>players.some(p=>p.id===old)?old:(players[0]?.id||''));},[roster.data?.fetchedAt,teamId]);
+  const selected=players.find(p=>p.id===playerId);
+  const groups=stats.data?.groups || [];
+  const group=groups.find(g=>g.kind==='averages') || groups.find(g=>g.stats.some(s=>s.label.toUpperCase()==='PTS')) || groups[0];
+  const important=['PTS','REB','AST','MIN','FG%','3P%'];
+  const featured=important.map(label=>group?.stats.find(s=>s.label.toUpperCase()===label)).filter(Boolean);
+  return <><div className="title-row"><div><span className="eyebrow">PLAYER INTELLIGENCE</span><h1>Roster &amp; <em>season stats.</em></h1><p>Browse player rosters and load real season statistics from the provider.</p></div></div>
+    <div className="players-layout"><section className="panel padded"><h2>Select a team</h2><label className="input-label">NBA TEAM<select value={teamId} onChange={e=>setTeamId(e.target.value)}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
+      <div className="team-heading"><Logo team={selectedTeam} size={42}/><div><h3>{selectedTeam?.name || 'NBA'}</h3><small>{players.length} roster players returned</small></div></div>
+      {roster.loading && <Notice>Loading team roster…</Notice>}
+      {roster.error && <Notice error retry={roster.refresh}>{roster.error}</Notice>}
+      <div className="roster-list">{players.map(p=><button key={p.id} className={p.id===playerId?'active':''} onClick={()=>setPlayerId(p.id)}><span className="headshot">{p.headshot?<img src={p.headshot} width="42" height="42" alt=""/>:p.jersey||'•'}</span><span><strong>{p.name}</strong><small>{p.position}{p.jersey?' · #'+p.jersey:''}</small></span><b>›</b></button>)}</div></section>
+      <section className="panel padded"><div className="heading-row"><h2>Player profile</h2><span className="muted">NBA regular season</span></div>
+      {selected?<div className="profile">{selected.headshot?<img src={selected.headshot} width="84" height="84" alt=""/>:<span className="headshot">#{selected.jersey}</span>}<div><span className="eyebrow">{selectedTeam?.abbreviation} · {selected.position}</span><h2>{selected.name}</h2><small>{[selected.height,selected.age?selected.age+' years':''].filter(Boolean).join(' · ')}</small></div></div>:<Notice>Select a team and player.</Notice>}
+      {stats.loading && <Notice>Loading real player stats…</Notice>}
+      {stats.error && <Notice error retry={stats.refresh}>Player stats unavailable: {stats.error}</Notice>}
+      {selected && !stats.loading && !stats.error && !group && <Notice>No current-season statistics were returned for this player.</Notice>}
+      {group && <><div className="heading-row"><h3>{group.title}</h3><small className="muted">Season ends {stats.data?.season} · {group.kind}</small></div><div className="player-highlights">{featured.map(row=><div key={row.label}><small>{row.label}</small><strong>{row.value}</strong></div>)}</div><div className="stats-list">{group.stats.filter(row=>!featured.some(f=>f.label===row.label)).slice(0,28).map((row,i)=><div key={i}><span>{row.label}</span><b>{row.value}</b></div>)}</div></>}
+      <p className="smallprint">Player statistics depend on ESPN's current-season coverage. Totals and averages are labelled according to the source feed.</p></section></div>
+  </>;
+}
+export default function Home() {
+  const [tab,setTab]=useState('games');
+  const [date,setDate]=useState(dateET);
+  const [gameId,setGameId]=useState('');
+  const [home,setHome]=useState('');
+  const [away,setAway]=useState('');
+  const [teamId,setTeamId]=useState('');
+  const [playerId,setPlayerId]=useState('');
+  const teamsFeed=useRemote(api('teams'),300000);
+  const teams=teamsFeed.data?.teams || [];
+  useEffect(()=>{if(!teams.length)return;const a=teams.find(x=>x.abbreviation==='BOS')?.id || teams[0].id;const b=teams.find(x=>x.abbreviation==='LAL')?.id || teams.find(x=>x.id!==a)?.id;setHome(x=>x||a);setAway(x=>x||b);setTeamId(x=>x||a);},[teamsFeed.data?.fetchedAt]);
+  const scores=useRemote(api('scoreboard',{date}),POLL);
+  const detail=useRemote(tab==='games' && gameId?api('game',{id:gameId}):null,POLL);
+  const formA=useRemote(tab==='teams' && home?api('form',{team:home}):null,300000);
+  const formB=useRemote(tab==='teams' && away?api('form',{team:away}):null,300000);
+  const roster=useRemote(tab==='players' && teamId?api('roster',{team:teamId}):null,300000);
+  const stats=useRemote(tab==='players' && playerId?api('player',{id:playerId}):null,300000);
+  const live=scores.data?.games?.filter(x=>x.status==='in').length || 0;
+  const pages=[{id:'games',symbol:'◉',label:'Live Games'},{id:'teams',symbol:'▥',label:'Matchup Lab'},{id:'players',symbol:'♧',label:'Player Explorer'}];
+  return <div className="shell"><aside className="sidebar"><div className="brand"><span>◈</span><strong>BASKETBALL<em>REFLEX SYSTEM</em></strong></div><div className="nav-label">THE WORKSPACE</div><nav>{pages.map(p=><button key={p.id} className={tab===p.id?'active':''} onClick={()=>setTab(p.id)}><span>{p.symbol}</span>{p.label}</button>)}</nav><div className="side-foot"><b>● REAL DATA SOURCES</b><p>Sports data provided by unofficial ESPN public feeds. Results depend on provider freshness and availability.</p><a href="https://github.com/rporga/BasketballReflexSystem" target="_blank" rel="noreferrer">VIEW GITHUB SOURCE ↗</a></div></aside>
+    <main><header className="top-bar"><span>NBA INTELLIGENCE <b>/</b> {pages.find(x=>x.id===tab)?.label.toUpperCase()}</span><div><span>ESPN DATA CONNECTED</span>{live?<strong className="live-note">● {live} LIVE</strong>:<strong className="online-note">AUTO REFRESH · 30S</strong>}</div></header><div className="content">
+      {tab==='games'&&<Games date={date} setDate={setDate} score={scores} gameId={gameId} setGameId={setGameId} detail={detail}/>}
+      {tab==='teams'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}<Matchup teams={teams} home={home} setHome={setHome} away={away} setAway={setAway} first={formA} second={formB}/></>}
+      {tab==='players'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}<PlayerView teams={teams} teamId={teamId} setTeamId={setTeamId} roster={roster} playerId={playerId} setPlayerId={setPlayerId} stats={stats}/></>}
+      <footer>BASKETBALL REFLEX SYSTEM · Real NBA data, with provider-dependent latency. Unofficial project, not affiliated with ESPN or the NBA. No betting predictions or financial advice.</footer>
+    </div></main></div>;
+}
