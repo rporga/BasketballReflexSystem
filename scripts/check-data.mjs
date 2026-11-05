@@ -23,3 +23,16 @@ const roster=await get(base+'/teams/'+teamId+'/roster');
 if(!Array.isArray(roster.athletes)||roster.athletes.length<5)throw new Error('NBA roster returned no recognized athletes');
 console.log('PASS roster endpoint: '+roster.athletes.length+' players');
 console.log('Provider smoke test completed. Next.js app still requires a server-capable deployment to serve public requests.');
+
+
+const eventId=board.events[0]?.id;
+if(eventId) {
+  const summary=await get(base+'/summary?event='+eventId);
+  if(!summary.header && !summary.boxscore)throw new Error('Game summary returned no expected structure');
+  console.log('PASS game summary endpoint: '+eventId+'; hasBoxscore='+!!summary.boxscore);
+}
+const playerId=roster.athletes.find(p=>p.displayName==='Jaylen Brown')?.id || roster.athletes[0]?.id;
+const season=new Date().getUTCMonth()>=6?new Date().getUTCFullYear()+1:new Date().getUTCFullYear();
+const statsResponse=await get('https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/'+playerId+'/stats?season='+season+'&seasontype=2');
+if(!statsResponse || typeof statsResponse!=='object')throw new Error('Player stat response was invalid');
+console.log('PASS player stats endpoint: '+playerId+'; top-level keys='+Object.keys(statsResponse).slice(0,8).join(','));
