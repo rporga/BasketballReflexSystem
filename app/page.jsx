@@ -56,7 +56,7 @@ function GameCard({game,selected,click}) {
   return <button className={'game-card '+(selected?'selected':'')} onClick={click}>
     <div className="game-card-top"><Badge status={game.status} text={game.statusName}/><span>{game.start?new Date(game.start).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'TBC'}</span></div>
     {[game.away,game.home].map((t,i)=><div className="game-line" key={i}><Logo team={t}/><div><strong>{t?.abbreviation || '—'}</strong><small>{t?.record}</small></div><b>{t?.score ?? '—'}</b></div>)}
-    <div className="game-card-foot">{game.venue || 'NBA GAME'}<span>VIEW BOX SCORE ↗</span></div>
+    <div className="game-card-foot">{game.venue || 'NBA GAME'}<span>VIEW DETAILS ↗</span></div>
   </button>;
 }
 function Boxscore({selected,feed}) {
@@ -89,7 +89,7 @@ function Games({date,setDate,score,gameId,setGameId,detail}) {
   },[score.data?.fetchedAt,date]);
   const chosen=games.find(g=>g.id===gameId);
   const live=games.filter(g=>g.status==='in').length;
-  return <><div className="title-row"><div><span className="eyebrow">LIVE NBA INTELLIGENCE</span><h1>Games &amp; <em>boxscores.</em></h1><p>Live scores, quarter scoring, team performance and real player boxscores.</p></div><button className="action" onClick={score.refresh}>↻ Refresh</button></div>
+  return <><div className="title-row"><div><span className="eyebrow">PICK & ROLL / LIVE NBA</span><h1>The game, <em>unfolding.</em></h1><p>Live scores, every quarter and every player. All the details, in one beautifully simple view.</p></div><button className="action" onClick={score.refresh}>Refresh ↗</button></div>
     <div className="date-nav"><button onClick={()=>setDate(d=>dateShift(d,-1))} aria-label="Previous date">←</button><div><small>NBA DATE · US EASTERN</small><strong>{dateLabel(date)}</strong></div><button onClick={()=>setDate(d=>dateShift(d,1))} aria-label="Next date">→</button><button onClick={()=>setDate(dateET())}>Today</button><span>{score.data ? (live ? live+' LIVE · ' : '') + games.length + ' games' : 'Waiting for feed'}</span></div>
     {score.loading && <Notice>Fetching the real NBA scoreboard…</Notice>}
     {score.error && <Notice error retry={score.refresh}>Unable to fetch games: {score.error}</Notice>}
@@ -109,7 +109,7 @@ function Matchup({teams,home,setHome,away,setAway,first,second}) {
   const a=teams.find(x=>x.id===home),b=teams.find(x=>x.id===away);
   const edgeA=first.data?.last5 ? +(first.data.last5.ppg-first.data.last5.oppg).toFixed(1) : null;
   const edgeB=second.data?.last5 ? +(second.data.last5.ppg-second.data.last5.oppg).toFixed(1) : null;
-  return <><div className="title-row"><div><span className="eyebrow">MATCHUP RESEARCH LAB</span><h1>Follow <em>the evidence.</em></h1><p>Compare real recent results from two NBA teams. No fabricated win probabilities.</p></div></div>
+  return <><div className="title-row"><div><span className="eyebrow">PICK & ROLL / MATCHUP LAB</span><h1>The story <em>behind the score.</em></h1><p>Two teams, side by side. Real performances and recent form, without the noise.</p></div></div>
     <section className="panel padded"><div className="heading-row"><h2>Pick your matchup</h2><small className="muted">Most recent 10 completed regular-season games</small></div><div className="team-pickers"><label>HOME TEAM<select value={home} onChange={e=>{setHome(e.target.value);if(e.target.value===away)setAway(home);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><span>VS</span><label>AWAY TEAM<select value={away} onChange={e=>{setAway(e.target.value);if(e.target.value===home)setHome(away);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label></div></section>
     <div className="compare-grid">{[[a,first,'HOME'],[b,second,'AWAY']].map(([team,feed,side])=><div className="panel padded" key={side}><div className="team-heading"><Logo team={team} size={48}/><div><span className="eyebrow">{side}</span><h2>{team?.name || 'Choose team'}</h2></div></div><Form data={feed.data} loading={feed.loading} error={feed.error} retry={feed.refresh}/></div>)}</div>
     <div className="panel padded"><span className="eyebrow">HISTORICAL COMPARISON — NOT A PREDICTION</span><h2>Last-five point differential</h2><div className="diff-grid">{[[a,edgeA],[b,edgeB]].map(([t,v],i)=><div key={i}><span>{t?.abbreviation || '—'}</span><strong>{v==null?'—':(v>0?'+':'')+v.toFixed(1)}</strong></div>)}</div><p className="explainer">Points scored minus points allowed per game across the five latest completed games returned by ESPN. This is descriptive evidence, not a validated prediction model.</p></div>
@@ -124,7 +124,7 @@ function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,stats}) 
   const group=groups.find(g=>g.kind==='averages') || groups.find(g=>g.stats.some(s=>s.label.toUpperCase()==='PTS')) || groups[0];
   const important=['PTS','REB','AST','MIN','FG%','3P%'];
   const featured=important.map(label=>group?.stats.find(s=>s.label.toUpperCase()===label)).filter(Boolean);
-  return <><div className="title-row"><div><span className="eyebrow">PLAYER INTELLIGENCE</span><h1>Roster &amp; <em>season stats.</em></h1><p>Browse player rosters and load real season statistics from the provider.</p></div></div>
+  return <><div className="title-row"><div><span className="eyebrow">PICK & ROLL / PLAYER EXPLORER</span><h1>Know the <em>players.</em></h1><p>Explore current rosters and season statistics. Every player has a story in the numbers.</p></div></div>
     <div className="players-layout"><section className="panel padded"><h2>Select a team</h2><label className="input-label">NBA TEAM<select value={teamId} onChange={e=>setTeamId(e.target.value)}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
       <div className="team-heading"><Logo team={selectedTeam} size={42}/><div><h3>{selectedTeam?.name || 'NBA'}</h3><small>{players.length} roster players returned</small></div></div>
       {roster.loading && <Notice>Loading team roster…</Notice>}
@@ -158,11 +158,19 @@ export default function Home() {
   const stats=useRemote(tab==='players' && playerId?api('player',{id:playerId}):null,300000);
   const live=scores.data?.games?.filter(x=>x.status==='in').length || 0;
   const pages=[{id:'games',symbol:'◉',label:'Live Games'},{id:'teams',symbol:'▥',label:'Matchup Lab'},{id:'players',symbol:'♧',label:'Player Explorer'}];
-  return <div className="shell"><aside className="sidebar"><div className="brand"><span>◈</span><strong>BASKETBALL<em>REFLEX SYSTEM</em></strong></div><div className="nav-label">THE WORKSPACE</div><nav>{pages.map(p=><button key={p.id} className={tab===p.id?'active':''} onClick={()=>setTab(p.id)}><span>{p.symbol}</span>{p.label}</button>)}</nav><div className="side-foot"><b>● REAL DATA SOURCES</b><p>Sports data provided by unofficial ESPN public feeds. Results depend on provider freshness and availability.</p><a href="https://github.com/rporga/BasketballReflexSystem" target="_blank" rel="noreferrer">VIEW GITHUB SOURCE ↗</a></div></aside>
-    <main><header className="top-bar"><span>NBA INTELLIGENCE <b>/</b> {pages.find(x=>x.id===tab)?.label.toUpperCase()}</span><div><span>ESPN DATA CONNECTED</span>{live?<strong className="live-note">● {live} LIVE</strong>:<strong className="online-note">AUTO REFRESH · 30S</strong>}</div></header><div className="content">
+  return <div className="site-shell">
+    <header className="site-header">
+      <div className="site-header-inner">
+        <a href="/" className="wordmark" aria-label="Pick and Roll, go to live games" onClick={e=>{e.preventDefault();setTab('games')}}><img src="/pick-roll-logo.svg" alt="Pick & Roll" /></a>
+        <nav className="topnav" aria-label="Main navigation">{pages.map(p=><button key={p.id} className={'nav-item '+(tab===p.id?'active':'')} onClick={()=>setTab(p.id)} aria-current={tab===p.id?'page':undefined}>{p.label}</button>)}</nav>
+        <div className="header-actions"><span className="system-label"><i/> NBA DATA</span>{live?<span className="live-pulse">{live} LIVE NOW</span>:<span className="header-freshness">UPDATES EVERY 30S</span>}</div>
+      </div>
+    </header>
+    <main className="main-stage"><div className="content">
+      <div className="workspace-meta"><span>PICK & ROLL <b>/</b> INTELLIGENCE</span><span>{pages.find(x=>x.id===tab)?.label.toUpperCase()}</span></div>
       {tab==='games'&&<Games date={date} setDate={setDate} score={scores} gameId={gameId} setGameId={setGameId} detail={detail}/>}
       {tab==='teams'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}<Matchup teams={teams} home={home} setHome={setHome} away={away} setAway={setAway} first={formA} second={formB}/></>}
       {tab==='players'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}<PlayerView teams={teams} teamId={teamId} setTeamId={setTeamId} roster={roster} playerId={playerId} setPlayerId={setPlayerId} stats={stats}/></>}
-      <footer>BASKETBALL REFLEX SYSTEM · Real NBA data, with provider-dependent latency. Unofficial project, not affiliated with ESPN or the NBA. No betting predictions or financial advice.</footer>
+      <footer className="site-footer"><span>PICK & ROLL <b>© 2026</b></span><span>Independent basketball analytics. Data availability varies. Not affiliated with the NBA.</span></footer>
     </div></main></div>;
 }
