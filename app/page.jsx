@@ -1,6 +1,7 @@
 'use client';
 
 import {useEffect,useState} from 'react';
+import IntelligencePanel from './IntelligencePanel';
 
 const POLL=30000;
 function dateET() {
@@ -89,7 +90,7 @@ function Games({date,setDate,score,gameId,setGameId,detail}) {
   },[score.data?.fetchedAt,date]);
   const chosen=games.find(g=>g.id===gameId);
   const live=games.filter(g=>g.status==='in').length;
-  return <><div className="title-row"><div><span className="eyebrow">PICK & ROLL / LIVE NBA</span><h1>The game, <em>unfolding.</em></h1><p>Live scores, every quarter and every player. All the details, in one beautifully simple view.</p></div><button className="action" onClick={score.refresh}>Refresh ↗</button></div>
+  return <><div className="module-line"><div><span>LIVE GAME CENTER</span><h2>Scores & boxscores.</h2></div><button className="module-refresh" onClick={score.refresh}>Refresh scores ↻</button></div>
     <div className="date-nav"><button onClick={()=>setDate(d=>dateShift(d,-1))} aria-label="Previous date">←</button><div><small>NBA DATE · US EASTERN</small><strong>{dateLabel(date)}</strong></div><button onClick={()=>setDate(d=>dateShift(d,1))} aria-label="Next date">→</button><button onClick={()=>setDate(dateET())}>Today</button><span>{score.data ? (live ? live+' LIVE · ' : '') + games.length + ' games' : 'Waiting for feed'}</span></div>
     {score.loading && <Notice>Fetching the real NBA scoreboard…</Notice>}
     {score.error && <Notice error retry={score.refresh}>Unable to fetch games: {score.error}</Notice>}
@@ -109,8 +110,8 @@ function Matchup({teams,home,setHome,away,setAway,first,second}) {
   const a=teams.find(x=>x.id===home),b=teams.find(x=>x.id===away);
   const edgeA=first.data?.last5 ? +(first.data.last5.ppg-first.data.last5.oppg).toFixed(1) : null;
   const edgeB=second.data?.last5 ? +(second.data.last5.ppg-second.data.last5.oppg).toFixed(1) : null;
-  return <><div className="title-row"><div><span className="eyebrow">PICK & ROLL / MATCHUP LAB</span><h1>The story <em>behind the score.</em></h1><p>Two teams, side by side. Real performances and recent form, without the noise.</p></div></div>
-    <section className="panel padded"><div className="heading-row"><h2>Pick your matchup</h2><small className="muted">Most recent 10 completed regular-season games</small></div><div className="team-pickers"><label>HOME TEAM<select value={home} onChange={e=>{setHome(e.target.value);if(e.target.value===away)setAway(home);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><span>VS</span><label>AWAY TEAM<select value={away} onChange={e=>{setAway(e.target.value);if(e.target.value===home)setHome(away);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label></div></section>
+  return <><div className="module-line"><div><span>TEAM FORM</span><h2>Recent results.</h2></div><small className="muted">Verified completed regular-season games</small></div>
+
     <div className="compare-grid">{[[a,first,'HOME'],[b,second,'AWAY']].map(([team,feed,side])=><div className="panel padded" key={side}><div className="team-heading"><Logo team={team} size={48}/><div><span className="eyebrow">{side}</span><h2>{team?.name || 'Choose team'}</h2></div></div><Form data={feed.data} loading={feed.loading} error={feed.error} retry={feed.refresh}/></div>)}</div>
     <div className="panel padded"><span className="eyebrow">HISTORICAL COMPARISON — NOT A PREDICTION</span><h2>Last-five point differential</h2><div className="diff-grid">{[[a,edgeA],[b,edgeB]].map(([t,v],i)=><div key={i}><span>{t?.abbreviation || '—'}</span><strong>{v==null?'—':(v>0?'+':'')+v.toFixed(1)}</strong></div>)}</div><p className="explainer">Points scored minus points allowed per game across the five latest completed games returned by ESPN. This is descriptive evidence, not a validated prediction model.</p></div>
   </>;
@@ -124,7 +125,7 @@ function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,stats}) 
   const group=groups.find(g=>g.kind==='averages') || groups.find(g=>g.stats.some(s=>s.label.toUpperCase()==='PTS')) || groups[0];
   const important=['PTS','REB','AST','MIN','FG%','3P%'];
   const featured=important.map(label=>group?.stats.find(s=>s.label.toUpperCase()===label)).filter(Boolean);
-  return <><div className="title-row"><div><span className="eyebrow">PICK & ROLL / PLAYER EXPLORER</span><h1>Know the <em>players.</em></h1><p>Explore current rosters and season statistics. Every player has a story in the numbers.</p></div></div>
+  return <><div className="module-line"><div><span>PLAYER EXPLORER</span><h2>Rosters & season stats.</h2></div></div>
     <div className="players-layout"><section className="panel padded"><h2>Select a team</h2><label className="input-label">NBA TEAM<select value={teamId} onChange={e=>setTeamId(e.target.value)}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
       <div className="team-heading"><Logo team={selectedTeam} size={42}/><div><h3>{selectedTeam?.name || 'NBA'}</h3><small>{players.length} roster players returned</small></div></div>
       {roster.loading && <Notice>Loading team roster…</Notice>}
@@ -156,6 +157,12 @@ export default function Home() {
   const formB=useRemote(tab==='teams' && away?api('form',{team:away}):null,300000);
   const roster=useRemote(tab==='players' && teamId?api('roster',{team:teamId}):null,300000);
   const stats=useRemote(tab==='players' && playerId?api('player',{id:playerId}):null,300000);
+  const selectedGame=scores.data?.games?.find(x=>x.id===gameId);
+  const intelHome=tab==='games'?selectedGame?.home:teams.find(x=>x.id===home);
+  const intelAway=tab==='games'?selectedGame?.away:teams.find(x=>x.id===away);
+  const reportUrl=tab!=='players'&&intelHome?.id&&intelAway?.id?'/api/intelligence?'+new URLSearchParams({home:intelHome.id,away:intelAway.id}):null;
+  const intelligence=useRemote(reportUrl,180000);
+  const selectedPlayer=roster.data?.players?.find(p=>p.id===playerId);
   const live=scores.data?.games?.filter(x=>x.status==='in').length || 0;
   const pages=[{id:'games',symbol:'◉',label:'Live Games'},{id:'teams',symbol:'▥',label:'Matchup Lab'},{id:'players',symbol:'♧',label:'Player Explorer'}];
   return <div className="site-shell">
@@ -168,7 +175,9 @@ export default function Home() {
     </header>
     <main className="main-stage"><div className="content">
       <div className="workspace-meta"><span>PICK & ROLL <b>/</b> INTELLIGENCE</span><span>{pages.find(x=>x.id===tab)?.label.toUpperCase()}</span></div>
-      {tab==='games'&&<Games date={date} setDate={setDate} score={scores} gameId={gameId} setGameId={setGameId} detail={detail}/>}
+      {tab==='teams'&&<div className="matchup-selector"><div className="module-line"><div><span>BUILD YOUR MATCHUP</span><h2>Choose the teams.</h2></div></div>    <section className="panel padded"><div className="heading-row"><h2>Pick your matchup</h2><small className="muted">Most recent 10 completed regular-season games</small></div><div className="team-pickers"><label>HOME TEAM<select value={home} onChange={e=>{setHome(e.target.value);if(e.target.value===away)setAway(home);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><span>VS</span><label>AWAY TEAM<select value={away} onChange={e=>{setAway(e.target.value);if(e.target.value===home)setHome(away);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label></div></section></div>}
+      <IntelligencePanel mode={tab} home={intelHome} away={intelAway} report={intelligence.data} loading={intelligence.loading} error={intelligence.error} onRefresh={intelligence.refresh} player={selectedPlayer} playerStats={stats.data} playerLoading={stats.loading} playerError={stats.error}/>
+            {tab==='games'&&<Games date={date} setDate={setDate} score={scores} gameId={gameId} setGameId={setGameId} detail={detail}/>}
       {tab==='teams'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}<Matchup teams={teams} home={home} setHome={setHome} away={away} setAway={setAway} first={formA} second={formB}/></>}
       {tab==='players'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}<PlayerView teams={teams} teamId={teamId} setTeamId={setTeamId} roster={roster} playerId={playerId} setPlayerId={setPlayerId} stats={stats}/></>}
       <footer className="site-footer"><span>PICK & ROLL <b>© 2026</b></span><span>Independent basketball analytics. Data availability varies. Not affiliated with the NBA.</span></footer>
