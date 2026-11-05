@@ -66,3 +66,7 @@ Responses carry `fetchedAt` and `provider` metadata. The service validates route
 4. Train, calibrate and backtest a proper probabilistic model; only then enable real predictions.
 
 This project is independent of ESPN and the NBA. It is not a betting recommendation service.
+
+## Automatic deployments
+
+The production website runs at [basketballreflexsystem.vercel.app](https://basketballreflexsystem.vercel.app). This repository is linked to the existing Vercel project `basketballreflexsystem`; pushes to its production branch `main` trigger a new deployment. GitHub Actions independently validates that the application builds and that the upstream NBA data endpoints respond.
