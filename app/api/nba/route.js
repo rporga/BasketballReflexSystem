@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const str = value => value == null ? '' : String(value);
-const numeric = value => value === '' || value == null || !Number.isFinite(Number(value)) ? null : Number(value);
+const numeric = value => { const v = value && typeof value === 'object' ? (value.value ?? value.displayValue ?? null) : value; return v === '' || v == null || !Number.isFinite(Number(v)) ? null : Number(v); };
 const safe = value => typeof value === 'string' ? value : '';
 
 async function request(url, seconds) {
@@ -104,7 +104,7 @@ async function player(id,season) {
       ['averages','totals','stats'].forEach(key=>{
         const values=obj[key];
         if(Array.isArray(values) && values.length && !Array.isArray(values[0]) && typeof values[0]!=='object') {
-          groups.push({title:safe(obj.displayName || obj.name || key),kind:key,
+          groups.push({title:safe(obj.displayName || obj.name || key),kind:safe(obj.name || key),
             stats:obj.labels.map((label,i)=>({label:str(label),value:str(values[i]??'—')}))});
         }
       });
