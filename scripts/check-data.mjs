@@ -36,3 +36,21 @@ const season=new Date().getUTCMonth()>=6?new Date().getUTCFullYear()+1:new Date(
 const statsResponse=await get('https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/'+playerId+'/stats?season='+season+'&seasontype=2');
 if(!statsResponse || typeof statsResponse!=='object')throw new Error('Player stat response was invalid');
 console.log('PASS player stats endpoint: '+playerId+'; top-level keys='+Object.keys(statsResponse).slice(0,8).join(','));
+
+
+console.log('STATS SHAPE '+JSON.stringify((statsResponse.categories || []).slice(0,2).map(c=>({
+  name:c.name,keys:Object.keys(c).slice(0,14),labels:c.labels?.slice(0,6),
+  totals:Array.isArray(c.totals)?c.totals.slice(0,3):null,
+  statsType:Array.isArray(c.stats)?typeof c.stats[0]:typeof c.stats
+}))).slice(0,900));
+const schedule=await get(base+'/teams/'+teamId+'/schedule?seasontype=2');
+const finished=(schedule.events || []).find(e=>e.status?.type?.completed);
+console.log('SCHEDULE SHAPE '+JSON.stringify({
+  eventCount:(schedule.events || []).length,
+  sample:finished?{
+    status:finished.status?.type?.name,
+    competitors:finished.competitions?.[0]?.competitors?.map(c=>({
+      id:c.team?.id,homeAway:c.homeAway,score:c.score
+    }))
+  }:null
+}).slice(0,900));
