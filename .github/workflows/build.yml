@@ -21,3 +21,6 @@ jobs:
 
       - name: Verify ESPN live feeds
         run: node scripts/check-data.mjs
+
+      - name: Verify quarter-level scoring data
+        run: node scripts/check-quarter-feed.mjs
