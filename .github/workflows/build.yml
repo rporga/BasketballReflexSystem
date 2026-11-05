@@ -24,3 +24,6 @@ jobs:
 
       - name: Verify quarter-level scoring data
         run: node scripts/check-quarter-feed.mjs
+
+      - name: Verify injury report data
+        run: node scripts/check-injuries.mjs
