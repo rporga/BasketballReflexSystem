@@ -3,6 +3,7 @@
 import {useEffect,useMemo,useState} from 'react';
 import {PROP_DEFS,aggregate,shooting,forecast,comparison,decimalOdds} from '../lib/prop-analytics.js';
 import FeedStamp from './FeedStamp';
+import {trackEvent} from '../lib/analytics.js';
 
 const STORAGE='pick-roll-parlay-v2';
 const LEGACY_STORAGE='pick-roll-parlay-v1';
@@ -138,7 +139,7 @@ function ParlayBuilder({legs,setLegs,clearStatus}){
        return <div key={l.key} className="parlay-leg">
          <div className="parlay-leg-top"><span className="parlay-index">{String(i+1).padStart(2,'0')}</span>
            <div className="parlay-leg-name"><strong>{l.name}</strong><span>{l.team} {l.opponent?'· '+l.opponent:''}{l.targetDate&&Date.now()>Date.parse(l.targetDate)+6*3600000?' · Past game':''}</span></div>
-           <button type="button" className="parlay-remove" aria-label={'Remove '+l.name+' '+l.prop} onClick={()=>setLegs(prev=>prev.filter(x=>x.key!==l.key))}>×</button>
+           <button type="button" className="parlay-remove" aria-label={'Remove '+l.name+' '+l.prop} onClick={()=>{setLegs(prev=>prev.filter(x=>x.key!==l.key));trackEvent('parlay_leg_removed',{prop:l.prop,leg_count:legs.length-1});}}>×</button>
          </div>
          <div className="parlay-leg-stats">
            <strong>{l.prop} {l.side==='over'?'Over':'Under'} {l.line}</strong>
@@ -157,7 +158,7 @@ function ParlayBuilder({legs,setLegs,clearStatus}){
      })}</div>
      <div className="parlay-summary">
        <div className="parlay-summary-top"><span>COMBINED BOARD</span>
-         <button type="button" className="parlay-clear" onClick={()=>{setLegs([]);clearStatus?.();}}>Clear all</button></div>
+         <button type="button" className="parlay-clear" onClick={()=>{setLegs([]);clearStatus?.();trackEvent('parlay_cleared',{leg_count:legs.length});}}>Clear all</button></div>
        <div className="parlay-summary-grid">
          <Stat label="THEORETICAL ODDS" value={combinedDecimal==null?'Add leg odds':show(combinedDecimal,2)+'×'} hint="product of leg prices"/>
          <Stat label="QUOTED BREAK-EVEN" value={implied==null?'Enter quote':pct(implied)} hint="actual parlay price"/>
@@ -257,6 +258,7 @@ export default function PlayerPropHub({player,team,feed}){
     prop,side,line:threshold,odds,oddsFormat,
     games:games.slice(0,52).map(g=>({id:g.id,date:g.date,stats:g.stats}))};
   setLegs(prev=>[...prev,l]);setMessage('Added to your parlay board.');
+  trackEvent('parlay_leg_added',{prop,side,leg_count:legs.length+1});
  }
  return <div className="prop-hub">
    <div className="prop-dashboard panel padded" aria-label="Player prop intelligence">
@@ -272,7 +274,7 @@ export default function PlayerPropHub({player,team,feed}){
        <div className="prop-player-head"><div><strong>{title}</strong><span>{team?.abbreviation||d.team} · {count} current-season games</span></div>
          <div className="prop-player-head-game">{next?<>NEXT GAME <b>{next.home?'vs':'@'} {next.abbreviation}</b><span>{niceDate(next.date)}</span></>:'UPCOMING GAME UNAVAILABLE'}</div></div>
        <div className="prop-category-scroll"><div className="prop-categories" aria-label="Prop categories">
-         {CORE.map(k=><button key={k} type="button" aria-pressed={prop===k} className={prop===k?'active':''} onClick={()=>setProp(k)}>{k}</button>)}
+         {CORE.map(k=><button key={k} type="button" aria-pressed={prop===k} className={prop===k?'active':''} onClick={()=>{setProp(k);trackEvent('prop_category_selected',{prop:k});}}>{k}</button>)}
        </div></div>
        <div className="prop-toolbar">
          <div className="prop-which"><span>PROP</span><strong>{PROP_DEFS[prop].label}</strong></div>
@@ -280,7 +282,7 @@ export default function PlayerPropHub({player,team,feed}){
            {['over','under'].map(x=><button type="button" key={x} className={x===side?'active':''} onClick={()=>setSide(x)} aria-pressed={x===side}>{x==='over'?'Over':'Under'}</button>)}
          </div>
          <label className="prop-line-input">LINE<input aria-label="Prop line" type="number" min=".5" max="400" step=".5" inputMode="decimal" value={line} onChange={e=>setLine(e.target.value)}/></label>
-         <SelectWindow value={windowSize} onChange={setWindowSize}/>
+         <SelectWindow value={windowSize} onChange={v=>{setWindowSize(v);trackEvent('prop_window_selected',{prop,sample_window:v});}}/>
        </div>
        <div className="prop-summary-row">
          <div className="prop-primary-hit"><span>HISTORICAL {direction.toUpperCase()} HIT RATE</span>
