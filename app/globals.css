@@ -379,3 +379,6 @@ button:focus-visible,a:focus-visible,select:focus-visible{outline:3px solid var(
   .intel-provenance span{display:block;margin-bottom:5px}
   .intel-player-highlights strong{font-size:26px}
 }
+
+/* Give the live-game boxscore and following scouting report breathing room. */
+.boxscore + .intelligence { margin-top: 40px; }
