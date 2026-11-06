@@ -454,3 +454,12 @@ button:focus-visible,a:focus-visible,select:focus-visible{outline:3px solid var(
 @media(prefers-reduced-motion:reduce){
   .dime-panel,.dime-launcher,.dime-thinking i,.dime-spinner{transition:none!important;animation:none!important}
 }
+
+/* Dime character artwork: same identity throughout the assistant. */
+.dime-launcher-icon { overflow:hidden; padding:0; background:#292929; }
+.dime-launcher-icon img, .dime-avatar img, .dime-intro-mark img, .dime-message-icon img {
+  display:block; width:100%; height:100%; object-fit:cover;
+}
+.dime-avatar,.dime-intro-mark,.dime-message-icon { overflow:hidden; padding:0; }
+.dime-intro-mark { width:72px; height:72px; border-radius:19px; }
+.dime-launcher.is-open .dime-launcher-icon { background:#292929; }
