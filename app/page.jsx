@@ -222,7 +222,7 @@ export default function Home() {
   return <div className="site-shell">
     <header className="site-header">
       <div className="site-header-inner">
-        <a href="/" className="wordmark" aria-label="Pick and Roll, go to live games" onClick={e=>{e.preventDefault();setTab('games')}}><img src="/pick-roll-logo.svg" alt="Pick & Roll" /></a>
+        <a href="/" className="wordmark" aria-label="Pick and Roll, go to live games" onClick={e=>{e.preventDefault();setTab('games')}}><img src="/pick-roll-logo.webp" alt="Pick & Roll" width="320" height="127" /></a>
         <nav className="topnav" aria-label="Main navigation">{pages.map(p=><button key={p.id} className={'nav-item '+(tab===p.id?'active':'')} onClick={()=>setTab(p.id)} aria-current={tab===p.id?'page':undefined}>{p.label}</button>)}</nav>
         <div className="header-actions"><ThemeToggle/>{live?<span className="live-pulse">{live} LIVE NOW</span>:null}</div>
       </div>
