@@ -382,3 +382,75 @@ button:focus-visible,a:focus-visible,select:focus-visible{outline:3px solid var(
 
 /* Give the live-game boxscore and following scouting report breathing room. */
 .boxscore + .intelligence { margin-top: 40px; }
+
+
+/* Dime: Pick & Roll's court-side AI assistant */
+.dime-launcher{position:fixed;right:25px;bottom:25px;z-index:61;display:flex;align-items:center;gap:10px;background:#161616;color:#fff;border:1px solid #161616;box-shadow:0 12px 45px #17171724;border-radius:100px;padding:11px 16px 11px 11px;min-height:57px;font-size:13px;font-weight:790;transition:transform .2s,box-shadow .2s,background .2s}
+.dime-launcher:hover{transform:translateY(-3px);background:#252525;box-shadow:0 16px 50px #17171736}
+.dime-launcher-icon{width:36px;height:36px;border-radius:50%;background:#e4580b;color:#fff;display:grid;place-items:center}
+.dime-launcher-arrow{font-size:16px;font-weight:450;color:#adadae}
+.dime-launcher.is-open{background:#e4580b;border-color:#e4580b}
+.dime-launcher.is-open .dime-launcher-icon{background:#ffffff2a}
+.dime-launcher.is-open .dime-launcher-arrow{color:white}
+.dime-backdrop{position:fixed;inset:0;background:#08080833;backdrop-filter:blur(1px);z-index:59}
+.dime-panel{position:fixed;right:20px;bottom:94px;z-index:60;display:flex;flex-direction:column;width:440px;height:min(670px,calc(100dvh - 125px));border-radius:22px;background:#fff;border:1px solid #e6e6e4;box-shadow:0 20px 90px #11111130;overflow:hidden;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(15px) scale(.98);transition:opacity .2s,visibility .2s,transform .2s}
+.dime-panel.visible{opacity:1;visibility:visible;pointer-events:auto;transform:translateY(0) scale(1)}
+.dime-header{display:flex;align-items:center;justify-content:space-between;padding:19px 20px;border-bottom:1px solid #eee;flex:none}
+.dime-identity{display:flex;gap:11px;align-items:center}
+.dime-avatar{display:grid;place-items:center;width:43px;height:43px;border-radius:14px;background:#1f1f1f;color:white;font-size:21px;font-weight:850;letter-spacing:-.06em}
+.dime-avatar span,.dime-title-dot,.dime-intro-mark span{color:#e4580b}
+.dime-identity strong{display:block;font-size:20px;font-weight:810;letter-spacing:-.045em;line-height:1.1}
+.dime-identity small{font-size:11px;color:#969693;font-weight:560}
+.dime-head-actions{display:flex;align-items:center;gap:6px}
+.dime-head-actions button{border:1px solid #eee;background:#fafafa;border-radius:50%;color:#5e5e5e;width:34px;height:34px;font-size:20px;line-height:1}
+.dime-head-actions button:hover{background:#fff0e7;color:#e4580b}
+.dime-context{display:flex;gap:8px;align-items:center;padding:11px 21px;background:#fafaf9;border-bottom:1px solid #ededeb;color:#696969;font-size:10px}
+.dime-context-circle{height:6px;width:6px;background:#e4580b;border-radius:50%;flex:none}
+.dime-context b{color:#a3a3a0;font-size:9px;letter-spacing:.06em}
+.dime-context>span:last-child{font-weight:750;color:#323232}
+.dime-messages{flex:1;overflow-y:auto;padding:21px 18px;overscroll-behavior:contain;scrollbar-color:#ddddda transparent}
+.dime-intro{padding:16px 5px 8px}
+.dime-intro-mark{width:60px;height:60px;display:grid;place-items:center;background:#181818;color:#fff;font-size:33px;font-weight:850;letter-spacing:-.06em;border-radius:18px;margin-bottom:27px}
+.dime-intro h2{font-size:31px;font-weight:820;letter-spacing:-.06em;line-height:1.05;margin:0 0 14px}
+.dime-intro p{font-size:13px;line-height:1.8;color:#757575;margin:0 0 29px}
+.dime-intro-label{font-size:10px;font-weight:800;letter-spacing:.1em;color:#9a9a97;margin-bottom:12px}
+.dime-prompts{display:flex;flex-direction:column;gap:9px}
+.dime-prompts button{padding:14px;border:1px solid #eeeeec;border-radius:12px;background:#fafaf9;color:#333;text-align:left;display:flex;justify-content:space-between;gap:10px;font-size:12px;font-weight:660;transition:border-color .2s,background .2s}
+.dime-prompts button:hover{background:#fff5ef;border-color:#f3d1bb}
+.dime-prompts button span{color:#e4580b}
+.dime-message{display:flex;gap:9px;margin-bottom:19px;align-items:flex-start}
+.dime-message.user{justify-content:flex-end}
+.dime-message-icon{width:27px;height:27px;flex:0 0 27px;background:#1b1b1b;color:#e4580b;border-radius:9px;display:grid;place-items:center;font-weight:850;font-size:12px}
+.dime-message-body{max-width:calc(100% - 36px);min-width:0}
+.dime-bubble{padding:12px 14px;background:#f5f5f3;border-radius:13px 13px 13px 3px;font-size:12px;color:#3e3e3e;line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere}
+.dime-message.user .dime-bubble{background:#e4580b;color:#fff;border-radius:13px 13px 3px 13px}
+.dime-message-time{display:block;color:#a5a5a2;font-size:9px;margin-top:5px}
+.dime-message.user .dime-message-time{text-align:right}
+.dime-thinking{display:flex;gap:4px;padding:4px}
+.dime-thinking i{width:5px;height:5px;background:#e4580b;border-radius:50%;animation:dime-dot 1.2s infinite ease-in-out}
+.dime-thinking i:nth-child(2){animation-delay:.15s}
+.dime-thinking i:nth-child(3){animation-delay:.3s}
+@keyframes dime-dot{50%{opacity:.3;transform:translateY(-3px)}}
+.dime-error{background:#fff2eb;color:#9f3705;font-size:11px;line-height:1.6;margin:0 18px 12px;padding:11px;border-radius:10px}
+.dime-compose{padding:13px 16px 17px;background:white;border-top:1px solid #efefec;flex:none}
+.dime-compose-box{display:flex;align-items:end;gap:8px;padding:9px 9px 9px 13px;border:1px solid #dededb;background:#fafaf9;border-radius:14px;transition:border-color .2s}
+.dime-compose-box:focus-within{border-color:#e4580b}
+.dime-compose textarea{min-width:0;flex:1;resize:none;background:transparent;border:0;outline:0;padding:5px 0;font-size:12px;font-family:inherit;line-height:1.6;color:#222;min-height:44px;max-height:125px}
+.dime-compose textarea::placeholder{color:#aaa}
+.dime-compose-box>button{border:0;border-radius:10px;background:#e4580b;color:white;width:37px;height:37px;flex:0 0 37px;font-size:23px;display:grid;place-items:center}
+.dime-compose-box>button:disabled{background:#dadad7;color:#aaa;cursor:not-allowed}
+.dime-compose>p{color:#a3a3a0;font-size:9px;text-align:center;margin:10px 0 0;line-height:1.5}
+.dime-spinner{width:16px;height:16px;border:2px solid #ffffff70;border-top-color:white;border-radius:50%;animation:dime-spin .7s linear infinite}
+@keyframes dime-spin{to{transform:rotate(360deg)}}
+@media(max-width:650px){
+  .dime-launcher{right:13px;bottom:13px;min-height:50px;padding:7px 12px 7px 7px}
+  .dime-launcher-icon{width:35px;height:35px}
+  .dime-panel{right:0;bottom:0;width:100%;height:100dvh;border:0;border-radius:0;max-width:none}
+  .dime-panel.visible ~ .dime-launcher{display:none}
+  .dime-launcher.is-open{display:none}
+  .dime-header{padding-top:max(19px,env(safe-area-inset-top))}
+  .dime-compose{padding-bottom:max(17px,env(safe-area-inset-bottom))}
+}
+@media(prefers-reduced-motion:reduce){
+  .dime-panel,.dime-launcher,.dime-thinking i,.dime-spinner{transition:none!important;animation:none!important}
+}
