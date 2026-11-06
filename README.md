@@ -165,3 +165,27 @@ Recorded events (only after opt-in) include `section_view`, `game_selected`, `ma
 In GA4: open **Reports → Realtime**, visit the live website in a browser where analytics is allowed, and confirm a session appears; custom product events can be viewed in Realtime or Engagement/Events as Google processes them. Tracking is subject to consent, browser ad blockers, and GA4 processing delays.
 
 Regression test: `node scripts/test-analytics.mjs`.
+
+## Shareable routes and product engagement
+
+Pick & Roll uses real Next.js App Router paths and preserves its existing dashboard design:
+
+| URL | Purpose |
+| --- | --- |
+| `/` or `/games` | Live Games |
+| `/games/{gameId}` | Selected NBA game, including direct-game date restoration |
+| `/matchups` | Matchup Lab |
+| `/matchups/{home}-vs-{away}` | Specific team comparison, such as `bos-vs-lal` |
+| `/players` | Player Explorer |
+| `/players/{playerId}` | Specific player research |
+| `/players/{playerId}?prop=AST&window=5` | Shared player prop category and recent-games sample |
+
+Desktop and mobile navigation, game cards, and player roster rows use real accessible links. The app keeps native browser Back/Forward behaviour and loads game dates, roster teams, and prop filters from the URL. Dynamic game and player routes have individual canonical URLs and search metadata, while stable navigation hubs are included in the sitemap. Query-string prop filters are deliberately not separate canonical pages.
+
+### GA4 tracking
+
+Pick & Roll continues using `G-88Q3PDQJF7` with optional visitor consent. The global `AnalyticsPageviews` component sends one explicit `page_view` on each real pathname change. The GA4 configuration has `send_page_view:false` to prevent duplication from the initial automatic config call. Query changes to the prop filter are measured by custom `prop_category_selected` and `prop_window_selected` events instead of artificial pageviews. Other consented feature events (game selected, player selected, parlay actions, rotation scenarios, Dime interactions) remain unchanged.
+
+In **GA4 → Admin → Data streams → Web → Enhanced measurement → Page views settings**, disable automatic pageviews on browser-history changes when explicit manual route tracking is in use, to avoid counting a route twice. Check **Reports → Realtime** after allowing analytics.
+
+Test locally with `node scripts/test-deep-links.mjs` and `node scripts/test-analytics.mjs`; GitHub Actions runs both.
