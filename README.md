@@ -122,3 +122,15 @@ The probabilistic scenario engine is in `lib/rotation-analytics.js`, with tests 
 The current ESPN feeds do **not** establish who defends whom on a possession. The defensive assignment control is strictly hypothetical and uses limited defensive proxies (steals, blocks, rebounds). Dime can call the same roster and single-scenario endpoints, but does not independently generate statistical estimates.
 
 For future production accuracy: ingest a licensed NBA play-by-play/lineup/defensive tracking provider, correct for opponent strength, rotations, pace, lineup effects and injury availability without double-counting, and fit/backtest/calibrate a game-state win model on held-out seasons.
+
+## Player Prop Intelligence & Parlay Explorer
+
+**Player Explorer** now uses the current-season ESPN game-by-game log rather than the career aggregate player summary. `GET /api/props?player=<ESPN_ID>` returns regular-season results only (up to 52), basic scoring/assist/rebound/three-point combinations, shooting efficiency, recent minutes, up to eight game-boxscore plus/minus entries, next scheduled opponent, opponent last-ten points allowed and current listed teammate injuries. It does not manufacture unavailable data.
+
+The interactive dashboard supports PTS/REB/AST/3PM, PRA/PR/PA/RA, STL/BLK/STOCKS; last 5/10/20/season filters; over/under with user-editable line and push-aware historical hit rates; tappable game-log bars; descriptive form estimates and middle-50% ranges; and expandable player opportunity, matchup and defensive context.
+
+The **Parlay Explorer** keeps up to eight manually selected legs in local browser storage. Decimal and American prices are supplied manually by the user; there is no connected sportsbook or execution. It can show the combined entered decimal price and its implied break-even, the product of historical individual hit rates as an *independence reference only*, and observed same-game co-hits/pairwise sample correlations only when users' future legs share the same target game and there are at least five matching historical games.
+
+These game-log hit rates and correlation summaries are **descriptive, not fitted or calibrated predictions**. A licensed provider would be necessary for real-time prop prices/line movement, possession tracking, official usage %, potential assists, rebound chances and properly adjusted player on/off data. Dime can read the same real game logs through the `getPlayerPropTrends` and `comparePropLegs` tools without inventing odds.
+
+Regression checks: `scripts/test-prop-analytics.mjs` and `scripts/check-player-props-source.mjs`.
