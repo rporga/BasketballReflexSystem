@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-11-06 — Google Analytics 4 — G-88Q3PDQJF7
+
+- Connected GA4 to Pick & Roll using consent-first script loading, with optional first-visit choice and permanent privacy preferences.
+- Added privacy-filtered product events for site navigation, game/player selection, prop categories, parlays, rotation simulations, and Dime engagement. No chat text or entered prices are sent to GA4.
+- Added a privacy explanation to the About page and opt-in tests to CI.
+- The website's colours, logo, PWA icons, and basketball functionality are unchanged.
+
 ## 2026-11-06 — Pick & Roll SEO and credibility pass
 
 ### Search and brand
