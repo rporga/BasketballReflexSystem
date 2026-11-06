@@ -51,3 +51,6 @@ jobs:
 
       - name: Inspect historical live game snapshots
         run: node scripts/check-live-snapshot.mjs
+
+      - name: Validate ESPN sourced live win probabilities
+        run: node scripts/test-espn-live.mjs
