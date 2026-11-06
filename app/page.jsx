@@ -103,7 +103,7 @@ function Boxscore({selected,feed,compact=false}) {
     {!feed.loading && !feed.error && !group?.rows?.length && <Notice>Player boxscore data isn't available yet. It usually appears around tip-off.</Notice>}
     {!!group?.rows?.length && <div className="table-scroll"><table className="box-table"><thead><tr><th>PLAYER</th>{cols.map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>{group.rows.map((r,i)=><tr key={r.id||i}><td><strong>{r.name}</strong><small>{r.position}{r.jersey?' · #'+r.jersey:''}{r.didNotPlay?' · DNP':''}</small></td>{cols.map(c=><td key={c}>{r.stats[c] ?? '—'}</td>)}</tr>)}</tbody></table></div>}
     {!!teamStat?.stats?.length && <><div className="separator"/><h3>Team game statistics · {team?.abbreviation}</h3><div className="stat-grid">{teamStat.stats.slice(0,12).map((s,i)=><div key={i}><span>{s.label}</span><b>{s.value}</b></div>)}</div></>}
-    <p className="smallprint">Stats update as they are published by the data provider.</p>
+    <p className="smallprint">Source: ESPN · Live updates</p>
   </section>;
 }
 function Games({date,setDate,score,gameId,setGameId,detail}) {
@@ -135,7 +135,7 @@ function Matchup({teams,home,setHome,away,setAway,first,second}) {
   return <><div className="module-line"><div><span>TEAM FORM</span><h2>Recent Form</h2></div><small className="muted">Verified completed regular-season games</small></div>
 
     <div className="compare-grid">{[[a,first,'HOME'],[b,second,'AWAY']].map(([team,feed,side])=><div className="panel padded" key={side}><div className="team-heading"><Logo team={team} size={48}/><div><span className="eyebrow">{side}</span><h2>{team?.name || 'Choose team'}</h2></div></div><Form data={feed.data} loading={feed.loading} error={feed.error} retry={feed.refresh}/></div>)}</div>
-    <div className="panel padded"><span className="eyebrow">HISTORICAL COMPARISON — NOT A PREDICTION</span><h2>Last 5: Point Differential</h2><div className="diff-grid">{[[a,edgeA],[b,edgeB]].map(([t,v],i)=><div key={i}><span>{t?.abbreviation || '—'}</span><strong>{v==null?'—':(v>0?'+':'')+v.toFixed(1)}</strong></div>)}</div><p className="explainer">Points scored minus points allowed per game across the five latest completed games returned by ESPN. This is descriptive evidence, not a validated prediction model.</p></div>
+    <div className="panel padded"><span className="eyebrow">RECENT FORM</span><h2>Last 5: Point Differential</h2><div className="diff-grid">{[[a,edgeA],[b,edgeB]].map(([t,v],i)=><div key={i}><span>{t?.abbreviation || '—'}</span><strong>{v==null?'—':(v>0?'+':'')+v.toFixed(1)}</strong></div>)}</div><p className="explainer">Last five games · ESPN</p></div>
   </>;
 }
 function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,stats}) {
@@ -159,7 +159,7 @@ function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,stats}) 
       {stats.error && <Notice error retry={stats.refresh}>Player stats unavailable: {stats.error}</Notice>}
       {selected && !stats.loading && !stats.error && !group && <Notice>No current-season statistics were returned for this player.</Notice>}
       {group && <><div className="heading-row"><h3>{group.title}</h3><small className="muted">Season ends {stats.data?.season} · {group.kind}</small></div><div className="player-highlights">{featured.map(row=><div key={row.label}><small>{row.label}</small><strong>{row.value}</strong></div>)}</div><div className="stats-list">{group.stats.filter(row=>!featured.some(f=>f.label===row.label)).slice(0,28).map((row,i)=><div key={i}><span>{row.label}</span><b>{row.value}</b></div>)}</div></>}
-      <p className="smallprint">Player statistics depend on ESPN's current-season coverage. Totals and averages are labelled according to the source feed.</p></section></div>
+      <p className="smallprint">Season stats · ESPN</p></section></div>
   </>;
 }
 export default function Home() {
@@ -213,7 +213,7 @@ export default function Home() {
         error={rotation.error} onRefresh={rotation.refresh} prior={intelligence.data?.prediction?.homeWin??null}
         liveGame={tab==='games'?selectedGame:null}/>}
       {tab==='players'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}<PlayerView teams={teams} teamId={teamId} setTeamId={setTeamId} roster={roster} playerId={playerId} setPlayerId={setPlayerId} stats={stats}/></>}
-      <footer className="site-footer"><span>PICK & ROLL <b>© 2026</b></span><span>Independent basketball analytics. Data availability varies. Not affiliated with the NBA.</span></footer>
+      <footer className="site-footer"><span>PICK & ROLL <b>© 2026</b></span><span>Independent NBA analytics · Data: ESPN</span></footer>
     </div></main>
     <nav className="mobile-bottom-nav" aria-label="Mobile primary navigation">
       {pages.map(p=><button type="button" key={p.id} className={'mobile-tab '+(tab===p.id?'active':'')}
