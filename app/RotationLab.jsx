@@ -129,10 +129,8 @@ export default function RotationLab({mode,data,loading,error,onRefresh,prior,liv
         {evaluation.defensiveMatchup&&<div className="rotation-assignment">
           <b>{evaluation.defensiveMatchup.attacker} vs {evaluation.defensiveMatchup.defender}</b>
           <p>Hypothetical scoring over 10 minutes: {num(evaluation.defensiveMatchup.expectedPoints10)} → {num(evaluation.defensiveMatchup.versusDefender10)} points.</p></div>}
-        <p className="rotation-usage">Player samples: {evaluation.samples.home}/5 and {evaluation.samples.away}/5.
-        {evaluation.baselineProvided?'':''}
-        {evaluation.mode==='LIVE EXPLORATORY'?'':''}</p>
-        </>:<p className="rotation-usage">The baseline matchup is shown above in the Scouting Report. Make a substitution or select a defensive assignment to compare the hypothetical outcome here.</p>)
+        <p className="rotation-usage">Recent form available for {evaluation.samples.home}/5 home and {evaluation.samples.away}/5 away players.</p>
+        </>:<p className="rotation-usage">Make a substitution to compare its impact.</p>)
           :<p className="rotation-usage">{evaluation?.reason||'Not enough usable player data for a lineup estimate.'}</p>}
         <p className="rotation-disclaimer">Hypothetical changes · ESPN data</p>
       </div>
