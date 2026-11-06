@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-06 — Shareable routes and route-aware analytics
+
+- Added real URLs for Live Games (`/games` and `/games/:gameId`), Player Explorer (`/players` and `/players/:playerId`), and Matchup Lab (`/matchups` and `/matchups/:home-vs-away`). Existing `/` landing remains intact.
+- Made desktop/mobile tabs, NBA game cards, and player roster items real links. Opening a game link restores its NBA game date; opening a player link loads the correct team roster when ESPN game logs provide the team.
+- Prop category and last-5/10/20/season filters are shareable using optional player-page query parameters without creating duplicate search pages.
+- Added route-specific titles, meta descriptions, canonical URLs, and homepage navigation hub entries to the sitemap.
+- GA4 now sends manual, consent-first `page_view` events on actual route changes (including Back/Forward). Disabled automatic config pageviews and retained custom feature analytics for prop filters, parlay actions, Dime and lineup simulations.
+- Added deep-link and analytics regression checks to CI. Documented the GA4 Enhanced Measurement setting needed to prevent duplicate browser-history pageviews.
+- Preserved the existing brand, app icons, responsive layout and NBA analytical calculations.
+
 ## 2026-11-06 — Google Analytics 4 — G-88Q3PDQJF7
 
 - Connected GA4 to Pick & Roll using consent-first script loading, with optional first-visit choice and permanent privacy preferences.
