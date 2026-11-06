@@ -35,21 +35,36 @@ function InjuryList({report,title}) {
     <div className="injury-team-total"><span>EST. IMPACT</span><strong>{report?.totalAdjustment==null?'Not quantified':'−'+fmt(report.totalAdjustment)+' pts'}</strong></div>
   </div>;
 }
-function PlayerIntelligence({player,stats,loading,error}) {
-  const groups=stats?.groups || [];
-  const group=groups.find(g=>g.kind==='averages') || groups[0];
-  const get=k=>group?.stats?.find(s=>s.label.toUpperCase()===k)?.value;
-  const scored=get('PTS'),assists=get('AST'),reb=get('REB'),minutes=get('MIN'),fg=get('FG%'),three=get('3P%'),games=get('GP');
-  const analysis=[];
-  if(scored)analysis.push('Scoring profile: '+player?.name+' averages '+scored+' points per game'+(minutes?', over '+minutes+' minutes':'')+' in the available regular-season record.');
-  if(assists&&reb)analysis.push('All-around production: '+assists+' assists and '+reb+' rebounds per game, offering context for playmaking and possession involvement.');
-  if(fg||three)analysis.push('Shooting indicators: '+(fg?fg+' field-goal percentage':'')+(fg&&three?' and ':'')+(three?three+' three-point percentage':'')+'. Compare with league baselines before inferring efficiency.');
-  if(games)analysis.push('Sample availability: statistics are reported across '+games+' games. Interpretation should account for minutes, opponents and role changes.');
-  return <section className="intel-player">
-    <div className="intel-top"><span className="intel-kicker">PLAYER INTELLIGENCE</span><span className="intel-mode">DATA-DERIVED REPORT</span></div>
+function PlayerIntelligence({player,propsData,loading,error}) {
+  const d=propsData?.playerId===player?.id?propsData:null;
+  const m=d?.metrics;
+  const fixed=v=>v==null?'—':Number(v).toFixed(1);
+  const over=v=>v>0?'+'+fixed(v):fixed(v);
+  const notes=[];
+  if(m?.minutes?.l5!=null&&m?.minutes?.season!=null){
+    const trend=m.minutes.l5-m.minutes.season;
+    notes.push({label:'MINUTES & OPPORTUNITY',
+      text:Math.abs(trend)<1.5?'Playing time is near the season baseline, averaging '+fixed(m.minutes.l5)+' minutes over the last five games.':
+      'Recent minutes are '+(trend>0?'up':'down')+' by '+fixed(Math.abs(trend))+' per game versus the season average.'});
+  }
+  if(m?.shooting?.ts!=null){
+    notes.push({label:'SCORING EFFICIENCY',text:'True shooting '+fixed(m.shooting.ts)+'% · '+fixed(m.shooting.fgAttempts)+' field-goal attempts and '+fixed(m.shooting.threeAttempts)+' threes attempted per game over the last ten.'});
+  }
+  if(m?.assists?.l10!=null&&m?.turnovers?.l10!=null){
+    notes.push({label:'CREATION & CONTROL',text:fixed(m.assists.l10)+' assists and '+fixed(m.turnovers.l10)+' turnovers per game across the latest sample.'});
+  }
+  if(m?.plusMinus){
+    notes.push({label:'ON-COURT IMPACT',text:'Recent game plus/minus averages '+over(m.plusMinus.average)+', with positive margins in '+m.plusMinus.positive+' of '+m.plusMinus.sample+' tracked games.'});
+  }
+  return <section className="intel-player player-scout-notes">
+    <div className="intel-top"><span className="intel-kicker">PLAYER INTELLIGENCE</span><span className="intel-mode">SCOUTING NOTES</span></div>
     <div className="intel-identity"><div><h2>Player Report</h2>{player&&<p>{player.name}</p>}</div><span className="intel-live">CURRENT SEASON</span></div>
-    {loading?<p className="intel-muted">Reading player statistics…</p>:error?<p className="intel-muted">{error}</p>:analysis.length?<><div className="intel-player-highlights">{[['POINTS',scored],['ASSISTS',assists],['REBOUNDS',reb],['MINUTES',minutes]].map(([label,value])=><div key={label}><span>{label}</span><strong>{value||'—'}</strong></div>)}</div><Scouting items={analysis}/></>:<p className="intel-muted">Select a player with available season averages to generate a report.</p>}
-    <Evidence source="ESPN · Player statistics"/>
+    {loading&&!d?<p className="intel-muted">Reading recent performances…</p>:
+      error&&!d?<p className="intel-muted">{error}</p>:
+      notes.length?<div className="player-notes-grid">{notes.map((n,i)=><div key={i} className="player-note-card">
+        <span>{n.label}</span><p>{n.text}</p></div>)}</div>:
+      <p className="intel-muted">Select a player with current-season game logs to review their scouting report.</p>}
+    <Evidence source="ESPN · Current-season game logs"/>
   </section>;
 }
 function StartingFives({rotation,loading,home,away}) {
@@ -160,9 +175,9 @@ function Model({report,home,away,rotation,rotationLoading,game,scoreboardFetched
     </div>:null}
   </div>;
 }
-export default function IntelligencePanel({mode,home,away,report,loading,error,onRefresh,rotation,rotationLoading,game,scoreboardFetchedAt,gameBoxscore,player,playerStats,playerLoading,playerError}) {
+export default function IntelligencePanel({mode,home,away,report,loading,error,onRefresh,rotation,rotationLoading,game,scoreboardFetchedAt,gameBoxscore,player,playerStats,playerLoading,playerError,propsData}) {
   const [view,setView]=useState('all');
-  if(mode==='players')return <PlayerIntelligence player={player} stats={playerStats} loading={playerLoading} error={playerError}/>;
+  if(mode==='players')return <PlayerIntelligence player={player} propsData={propsData} loading={playerLoading} error={playerError}/>;
   const h=report?.teams?.home;
   const a=report?.teams?.away;
   return <section className="intelligence" aria-label="Data-backed basketball intelligence">
