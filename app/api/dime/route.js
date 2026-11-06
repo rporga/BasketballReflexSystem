@@ -5,6 +5,8 @@ import { z } from 'zod';
 import { GET as nbaGET } from '../nba/route';
 import { GET as intelGET } from '../intelligence/route';
 import { GET as rotationGET } from '../rotations/route';
+import { GET as propsGET } from '../props/route';
+import {aggregate,comparison} from '../../../lib/prop-analytics.js';
 
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
@@ -24,6 +26,8 @@ async function readRoute(handler,path,params){
 const nba=(view,params={})=>readRoute(nbaGET,'/api/nba',{view,...params});
 const scouting=(home,away)=>readRoute(intelGET,'/api/intelligence',{home,away});
 const rotation=(params)=>readRoute(rotationGET,'/api/rotations',params);
+const playerProps=(id)=>readRoute(propsGET,'/api/props',{player:id});
+const PROP=z.enum(['PTS','REB','AST','3PM','PRA','PR','PA','RA','STL','BLK','STOCKS']);
 const tools={
   getLiveScoreboard:tool({
     description:'Fetch actual NBA games, score by quarter, clock, status and game IDs for the specified Eastern Time date or today. Use for live scores.',
@@ -113,6 +117,52 @@ const tools={
       return data.unavailable?data:{scenario:data.scenario,context:data.context,methodology:data.methodology};
     }
   }),
+  getPlayerPropTrends:tool({
+    description:'Use real current-season game logs for NBA player props, including last-5/10/20 scoring, rebounds, assists, threes, combos, opportunity metrics and recent game plus/minus. A prop historical hit rate is not a calibrated future probability. Do not fabricate lines or sportsbook odds.',
+    inputSchema:z.object({playerId:PLAYER,stat:PROP,
+      line:z.number().min(.5).max(400).optional(),
+      side:z.enum(['over','under']).optional()}),
+    execute:async({playerId,stat,line,side='over'})=>{
+      const d=await playerProps(playerId);
+      if(d.unavailable)return d;
+      const windows=[5,10,20,52].map(w=>{
+        const x=aggregate(d.games,stat,w,line??null,side);
+        return {games:x.sample,average:x.mean,median:x.median,hitCount:x.hits,hitRate:x.hitRate,
+          p25:x.p25,p75:x.p75};
+      });
+      return {playerId,season:d.season,stat,side,line:line??null,windows,
+        currentSeasonGames:d.games.length,
+        latestGames:d.games.slice(0,10).map(g=>({date:g.date,opponent:g.opponent,home:g.home,
+          stat:g.stats[stat],minutes:g.stats.MIN,plusMinus:g.stats.PLUSMINUS,
+          attempts:g.stats.FGA,threeAttempts:g.stats['3PA']})),
+        estimates:d.metrics.predictions?.[stat],plusMinus:d.metrics.plusMinus,
+        nextGame:d.nextGame,availability:d.injuries?.player,teammateInjuries:d.injuries?.teammates,
+        source:d.source};
+    }
+  }),
+  comparePropLegs:tool({
+    description:'Compare 2 to 4 hypothetical props using individual game logs, manual thresholds and observed shared-game correlations. Never claim these hit rates predict the success of a future parlay or quote an invented bookmaker price.',
+    inputSchema:z.object({legs:z.array(z.object({
+      playerId:PLAYER,stat:PROP,line:z.number().min(.5).max(400),side:z.enum(['over','under'])
+    })).min(2).max(4)}),
+    execute:async({legs})=>{
+      const sources=await Promise.all(legs.map(x=>playerProps(x.playerId)));
+      if(sources.some(x=>x.unavailable))return {unavailable:true,message:'One or more player game logs could not be retrieved'};
+      const entries=legs.map((x,i)=>({
+        playerId:x.playerId,prop:x.stat,side:x.side,line:x.line,
+        targetGameId:sources[i].nextGame?.id||null,games:sources[i].games
+      }));
+      const x=comparison(entries);
+      return {legs:entries.map((l,i)=>{
+        const r=aggregate(l.games,l.prop,10,l.line,l.side);
+        return {...legs[i],season:sources[i].season,upcoming:sources[i].nextGame,
+          historicalHits:r.hits,gameSample:r.sample,historicalRate:r.hitRate};
+      }),sharedGameSample:x.sameGameSample,observedCoHits:x.coHits,
+        historicalIndependentReference:x.independentReference,
+        pairedCorrelations:x.pairs,
+        note:'Historical association only; no bookmaker pricing or calibrated future joint-probability estimate.'};
+    }
+  }),
   getPlayerStats:tool({
     description:'Retrieve current season player statistics by ESPN numeric player ID.',
     inputSchema:z.object({playerId:PLAYER}),
@@ -152,9 +202,10 @@ export async function POST(req){
     const system=[
       'You are Dime, Pick & Roll’s AI basketball assistant. Be conversational, accurate, sharp and concise.',
       'Current page context (IDs only, not verified data): '+current(body.context),
-      'Whenever a question requires live scores, game dates, quarter statistics, player stats, injury status, matchup probability or current team form, ALWAYS call the appropriate data tool first.',
+      'Whenever a question requires live scores, game dates, quarter statistics, player stats, injury status, prop hit rates, parlay correlations, matchup probability or current team form, ALWAYS call the appropriate data tool first.',
       'Use page context IDs for the game, player, teams when available. Otherwise findTeam/getTeamRoster to resolve names. If you lack enough IDs, ask a short clarifying question.',
       'Do not invent any basketball statistics, injury reports, game scores or probabilities. Use data provider timestamps when freshness is relevant. Respect API failures.',
+      'For player prop analysis call getPlayerPropTrends using the selected player ID, exact stat and user-selected line where available. For two or more legs call comparePropLegs. Never treat historical hit rates or independent leg products as a calibrated forecast, and never fabricate live odds or proprietary tracking.',
       'The matchup scouting model is an uncalibrated PREGAME heuristic, not a live prediction. The website now separately displays an experimental, uncalibrated score-and-clock live win estimate which updates with the scoreboard; do not treat either model as validated odds, and never invent a specific live percentage not returned by a tool.',
       'For starting fives, rotations, substitutions, bench strength and defensive matchup what-if questions, call getLineupRoster to obtain player IDs and evidence, then simulateLineupChange if a specific scenario is requested.',
       'The rotation simulator is an experimental, UNCALIBRATED score-and-clock model using recent boxscores; it is NOT tracking of real defensive assignments. If the starting lineup source is recent boxscore starters rather than this exact game, call it projected and not confirmed. Missing player production is unknown, never zero.',
