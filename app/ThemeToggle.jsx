@@ -17,6 +17,7 @@ export default function ThemeToggle(){
   useEffect(()=>{
     const existing=document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light';
     setTheme(existing);
+    applyTheme(existing);
     const preference=window.matchMedia('(prefers-color-scheme: dark)');
     const onSystemChange=()=>{
       let saved;
