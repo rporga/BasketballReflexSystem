@@ -54,3 +54,6 @@ jobs:
 
       - name: Validate ESPN sourced live win probabilities
         run: node scripts/test-espn-live.mjs
+
+      - name: Measure historical player prop forecast errors
+        run: node scripts/backtest-prop-model.mjs
