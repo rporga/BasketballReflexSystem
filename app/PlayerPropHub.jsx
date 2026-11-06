@@ -18,21 +18,30 @@ function SelectWindow({value,onChange}){
  </div>;
 }
 function PropBars({games,keyName,line,side}){
+ const [selectedId,setSelectedId]=useState(null);
  const recent=games.slice(0,20).filter(g=>Number.isFinite(g.stats?.[keyName])).reverse();
  const max=Math.max(1,...recent.map(g=>g.stats[keyName]),Number(line)||0)*1.1;
+ const selected=recent.find(g=>g.id===selectedId)||recent[recent.length-1];
  return <div className="prop-bars-scroller">
-   <div className="prop-bars-plot" role="img" aria-label={'Last '+recent.length+' games for '+(PROP_DEFS[keyName]?.label||keyName)+' compared with line '+line}>
-     {Number.isFinite(Number(line))&&<div className="prop-line-mark" style={{bottom:Math.min(100,Math.max(0,100*Number(line)/max))+'%'}}>
+   <div className="prop-bars-plot" role="group" aria-label={'Last '+recent.length+' games for '+(PROP_DEFS[keyName]?.label||keyName)+' compared with line '+line}>
+     {line!=null&&Number.isFinite(Number(line))&&<div className="prop-line-mark" style={{bottom:Math.min(100,Math.max(0,100*Number(line)/max))+'%'}}>
        <span>{line}</span>
      </div>}
-     {recent.map((g,i)=>{
-       const v=g.stats[keyName],hit=side==='over'?v>Number(line):v<Number(line);
-       return <div className="prop-bar-slot" key={g.id} title={niceDate(g.date)+' vs '+g.opponent+': '+v}>
-         <div className={'prop-bar '+(hit?'hit':'miss')} style={{height:Math.max(4,100*v/max)+'%'}} aria-label={v+' '+keyName}/>
+     {recent.map(g=>{
+       const v=g.stats[keyName],hit=line!=null&&(side==='over'?v>Number(line):v<Number(line));
+       return <button type="button" className={'prop-bar-slot '+(selected?.id===g.id?'selected':'')} key={g.id}
+         onClick={()=>setSelectedId(g.id)} aria-pressed={selected?.id===g.id}
+         title={niceDate(g.date)+' vs '+g.opponent+': '+v}
+         aria-label={niceDate(g.date)+' against '+g.opponent+', '+v+' '+(PROP_DEFS[keyName]?.label||keyName)}>
+         <span className={'prop-bar '+(hit?'hit':'miss')} style={{height:Math.max(4,100*v/max)+'%'}}/>
          <small>{niceDate(g.date).split(' ')[0]}</small>
-       </div>;
+       </button>;
      })}
    </div>
+   {selected&&<div className="prop-selected-game"><span>{niceDate(selected.date)} · {selected.home?'vs':'@'} {selected.opponent}</span>
+     <strong>{selected.stats[keyName]} {keyName}</strong>
+     <span>{selected.stats.MIN==null?'':'· '+selected.stats.MIN+' MIN'}{selected.stats.PLUSMINUS==null?'':' · '+signed(selected.stats.PLUSMINUS)+' +/-'}</span>
+   </div>}
    <div className="prop-bars-key"><span><i className="good"/>Hit</span><span><i className="other"/>Miss</span>
      <span>Source: ESPN game logs</span></div>
  </div>;
@@ -127,7 +136,7 @@ function ParlayBuilder({legs,setLegs,clearStatus}){
          </div>
          <div className="parlay-leg-stats">
            <strong>{l.prop} {l.side==='over'?'Over':'Under'} {l.line}</strong>
-           <span>{hit.sample?hit.hits+'/'+hit.sample+' recent hits':'No sample'}</span>
+           <span>{hit.sample?hit.hits+'/'+(hit.decisions??hit.sample)+' recent hits':'No sample'}</span>
          </div>
          <div className="parlay-leg-pricing">
            <label>ODDS
@@ -228,7 +237,7 @@ export default function PlayerPropHub({player,team,feed}){
        <div className="prop-summary-row">
          <div className="prop-primary-hit"><span>HISTORICAL {direction.toUpperCase()} HIT RATE</span>
            <strong>{validLine?pct(summary.hitRate):'—'}</strong>
-           <small>{validLine?summary.hits+'/'+summary.sample+' games · '+rangeName(windowSize):'Enter a prop line'}</small></div>
+           <small>{validLine?summary.hits+'/'+(summary.decisions??summary.sample)+' games · '+rangeName(windowSize)+(summary.pushes?' · '+summary.pushes+' push':''):'Enter a prop line'}</small></div>
          <div className="prop-secondary-stats">
            <Stat label="FORM ESTIMATE" value={projected?show(projected.expected):'—'} hint={prop}/>
            <Stat label="L10 AVERAGE" value={show(aggregate(games,prop,10).mean)}/>
@@ -249,7 +258,7 @@ export default function PlayerPropHub({player,team,feed}){
        {message&&<p className="prop-message" role="status">{message}</p>}
        <button type="button" className={'prop-details-toggle '+(details?'open':'')} aria-expanded={details}
          onClick={()=>setDetails(x=>!x)}>
-         <span><b>Deep Player Intelligence</b><small>Minutes · efficiency · +/− · defense · matchup</small></span>
+         <span><b>Player Intelligence Report</b><small>Minutes · efficiency · +/− · defense · matchup</small></span>
          <span aria-hidden="true">{details?'−':'+'}</span>
        </button>
        {details&&<Insights data={d} games={games} prop={prop} team={team}/>}
