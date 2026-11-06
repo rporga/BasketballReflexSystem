@@ -198,7 +198,7 @@ export default function PlayerPropHub({player,team,feed}){
    const raw=window.localStorage.getItem(STORAGE)||window.localStorage.getItem(LEGACY_STORAGE);
    if(raw){
      const saved=JSON.parse(raw);
-     if(Array.isArray(saved))setLegs(saved.filter(l=>l&&l.key&&PROP_DEFS[l.prop]&&/^\\d{1,12}$/.test(String(l.playerId||'')))
+     if(Array.isArray(saved))setLegs(saved.filter(l=>l&&l.key&&PROP_DEFS[l.prop]&&/^\d{1,12}$/.test(String(l.playerId||'')))
        .slice(0,8).map(l=>({...l,games:undefined,refreshError:false})));
    }
  }catch{}setLoaded(true);},[]);
@@ -207,7 +207,7 @@ export default function PlayerPropHub({player,team,feed}){
    window.localStorage.setItem(STORAGE,JSON.stringify(legs.map(({games,refreshError,...selection})=>selection)));
    window.localStorage.removeItem(LEGACY_STORAGE);
  }catch{}}},[legs,loaded]);
- const pendingIds=[...new Set(legs.filter(l=>!Array.isArray(l.games)&&!l.refreshError).map(l=>String(l.playerId)))].filter(id=>/^\\d{1,12}$/.test(id));
+ const pendingIds=[...new Set(legs.filter(l=>!Array.isArray(l.games)&&!l.refreshError).map(l=>String(l.playerId)))].filter(id=>/^\d{1,12}$/.test(id));
  const pendingKey=pendingIds.join(',');
  useEffect(()=>{
    if(!loaded||!pendingKey)return;
