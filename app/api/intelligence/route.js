@@ -132,7 +132,7 @@ async function playerForm(id) {
   } catch {return null;}
 }
 const relevance={out:1,doubtful:.8,questionable:.4,daytoday:.35,probable:.1};
-async function injuryReport(raw,id) {
+async function injuryReport(raw,id,teamGames=[]) {
   const entries=normalizedInjuries(raw,id);
   const current=entries.filter(x=>relevance[statusKey(x.status)]!==undefined);
   const scored=await Promise.all(current.slice(0,12).map(async x=>{
@@ -149,12 +149,16 @@ async function injuryReport(raw,id) {
     const stillOut=statusKey(x.status)==='out'&&hrs!==null&&hrs>=-6;
     const fresh=hrs!==null&&hrs>=-6&&hrs<=72;
     const validStatus=(stillOut||fresh)&&!superseded;
-    const includedInEstimate=validStatus&&form!==null&&weight>0;
+    // The team form already includes an absence if the player missed the entire recent window.
+    // Only apply an additional absence penalty to someone who appeared during the last five team games.
+    const windowStart=teamGames[Math.min(4,teamGames.length-1)]?.date;
+    const previouslyContributing=Boolean(windowStart&&Number.isFinite(lastPlayed)&&lastPlayed>=Date.parse(windowStart));
+    const includedInEstimate=validStatus&&previouslyContributing&&form!==null&&weight>0;
     // Estimated impact has a minutes component and is capped; this is not a causal on/off value.
     const availability=Math.min(1,Math.max(0,(form?.minutes??0)/30));
     const adjustment=includedInEstimate?Math.min(3.5,ppg*.20*weight*availability):null;
     return {...x,ppg,seasonGames:form?.gameCount??0,reportAgeHours:hrs===null?null:round(hrs),
-      superseded,includedInEstimate,estimatedPoints:adjustment===null?null:round(adjustment,2)};
+      superseded,previouslyContributing,includedInEstimate,estimatedPoints:adjustment===null?null:round(adjustment,2)};
   }));
   const scoredNames=new Set(scored.map(x=>x.name));
   const unscored=entries.filter(x=>!scoredNames.has(x.name)).map(x=>({...x,ppg:null,estimatedPoints:null,includedInEstimate:false,reportAgeHours:null}));
@@ -162,7 +166,7 @@ async function injuryReport(raw,id) {
   const quantified=scored.filter(x=>x.includedInEstimate).length;
   const unknown=scored.filter(x=>!x.includedInEstimate).length;
   return {players,reportCount:players.length,quantified,unquantified:unknown,
-    totalAdjustment:quantified===0&&current.length>0?null:round(Math.min(7,scored.reduce((acc,x)=>acc+(x.estimatedPoints??0),0)),2),reportSource:'ESPN public injuries',assumption:'Status weights: Out 100%, Doubtful 80%, Questionable 40%, Day-to-day 35%, Probable 10%; uses 20% of player season PPG (max 3.5 points per player, 7 total). Long-term OUT statuses stay eligible unless game logs show the player returned; other statuses require updates within 72 hours. Current-season game logs and minutes are required. This is a heuristic, not a measured on/off model.'};
+    totalAdjustment:quantified===0&&current.length>0?null:round(Math.min(7,scored.reduce((acc,x)=>acc+(x.estimatedPoints??0),0)),2),reportSource:'ESPN public injuries',assumption:'Status weights: Out 100%, Doubtful 80%, Questionable 40%, Day-to-day 35%, Probable 10%; uses 20% of player season PPG (max 3.5 points per player, 7 total). Long-term OUT statuses stay eligible unless game logs show the player returned; other statuses require updates within 72 hours. Current-season game logs, minutes, and an appearance within the last five team games are required to reduce double-counting absences already embedded in team form. This is a heuristic, not a measured on/off model.'};
 }
 function probability(h,a,hi,ai) {
   if(!h||!a)return null;
@@ -204,7 +208,7 @@ export async function GET(request) {
   if(!teamIdValid(home)||!teamIdValid(away)||home===away)return sendError('Select two different valid ESPN team IDs.',400);
   try {
     const [gamesH,gamesA,report]=await Promise.all([recentGames(home),recentGames(away),get(ESPN+'/injuries',120)]);
-    const [hi,ai]=await Promise.all([injuryReport(report,home),injuryReport(report,away)]);
+    const [hi,ai]=await Promise.all([injuryReport(report,home,gamesH),injuryReport(report,away,gamesA)]);
     const h=stat(gamesH),a=stat(gamesA);
     const prediction=probability(h,a,hi,ai);
     const nameH=text((report.injuries||[]).find(x=>String(x.id)===home)?.displayName)||'Home';
