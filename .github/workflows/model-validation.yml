@@ -1,0 +1,22 @@
+name: NBA Model Validation
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 4 * * 1'
+permissions:
+  contents: read
+jobs:
+  validate-models:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify model backtest against full NBA season
+        run: node scripts/backtest-win-model.mjs
+      - name: Verify player prop forecast performance
+        run: node scripts/backtest-prop-model.mjs
+      - name: Inspect ESPN live play-level probability availability
+        run: node scripts/check-live-snapshot.mjs
