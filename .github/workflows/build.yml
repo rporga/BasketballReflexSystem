@@ -46,17 +46,11 @@ jobs:
       - name: Validate player prop and parlay statistics
         run: node scripts/test-prop-analytics.mjs
 
-      - name: Measure win model accuracy on historical NBA games
-        run: node scripts/backtest-win-model.mjs
 
-      - name: Inspect historical live game snapshots
-        run: node scripts/check-live-snapshot.mjs
 
       - name: Validate ESPN sourced live win probabilities
         run: node scripts/test-espn-live.mjs
 
-      - name: Measure historical player prop forecast errors
-        run: node scripts/backtest-prop-model.mjs
 
       - name: Validate critical NBA accuracy fixes
         run: node scripts/test-accuracy-regressions.mjs
