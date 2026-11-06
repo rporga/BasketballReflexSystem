@@ -15,7 +15,7 @@ function Squad({team,ids}){
     </div>)}</div>
   </details>;
 }
-export default function RotationLab({mode,data,loading,error,onRefresh,prior}){
+export default function RotationLab({mode,data,loading,error,onRefresh,prior,liveGame}){
   const [homeFive,setHomeFive]=useState([]);
   const [awayFive,setAwayFive]=useState([]);
   const [side,setSide]=useState('home');
@@ -36,7 +36,14 @@ export default function RotationLab({mode,data,loading,error,onRefresh,prior}){
     ...(away?.players||[]).filter(p=>A.includes(p.id)).map(p=>({...p,side:'away'}))];
   const attacker=all.find(p=>p.id===attackerId);
   const opposing=attacker?all.filter(p=>p.side!==attacker.side):[];
-  const evaluation=useMemo(()=>data?evaluateRotation(data,{homeIds:H,awayIds:A,attackerId,defenderId,priorHomeWin:prior}):null,[data,homeFive,awayFive,attackerId,defenderId,prior]);
+  const evaluation=useMemo(()=>{
+    if(!data)return null;
+    const observedGame=liveGame?{
+      status:liveGame.status,period:liveGame.period,clock:liveGame.clock,
+      homeScore:liveGame.home?.score,awayScore:liveGame.away?.score
+    }:data.game;
+    return evaluateRotation({...data,game:observedGame},{homeIds:H,awayIds:A,attackerId,defenderId,priorHomeWin:prior});
+  },[data,liveGame,homeFive,awayFive,attackerId,defenderId,prior]);
   const labels=new Map([...(home?.players||[]),...(away?.players||[])].map(p=>[p.id,p.name]));
 
   useEffect(()=>{setHomeFive([]);setAwayFive([]);setSide('home');setOutId('');setInId('');
