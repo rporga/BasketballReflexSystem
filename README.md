@@ -70,3 +70,27 @@ This project is independent of ESPN and the NBA. It is not a betting recommendat
 ## Automatic deployments
 
 The production website runs at [basketballreflexsystem.vercel.app](https://basketballreflexsystem.vercel.app). This repository is linked to the existing Vercel project `basketballreflexsystem`; pushes to its production branch `main` trigger a new deployment. GitHub Actions independently validates that the application builds and that the upstream NBA data endpoints respond.
+
+## Install Pick & Roll as an app (PWA)
+
+Pick & Roll now includes an installable web manifest, service worker, offline page, and matching orange-and-charcoal basketball icons. The browser tab icon, Apple touch icon, Android 192×192 / 512×512 icons and Android maskable icon are derived from the same artwork.
+
+- **iPhone / iPad:** Open the site in Safari, tap **Share → Add to Home Screen** (or your browser's equivalent).
+- **Android:** Open the site in Chrome, tap the menu → **Install app** or **Add to Home screen**.
+- **Desktop Chrome / Edge:** Choose **Install Pick & Roll** from the browser's install prompt or menu.
+
+The app launches in standalone mode on supported devices. Only static shell files are cached: **live game statistics and AI chats are always network-only**. If offline, the app displays a reconnect screen rather than stale scores.
+
+### Generate app icons
+
+The vector artwork lives in `public/app-icon.svg`. `scripts/generate-pwa-icons.mjs` regenerates all PNG sizes with Sharp. The `Generate PWA app icons` GitHub workflow runs when the vector or generator changes and commits the generated PNG files.
+
+## Dime: AI basketball assistant
+
+Use the floating **Ask Dime** button anywhere in the application. Dime is a conversational LLM assistant that knows the selected game, matchup or player and uses read-only server-side tools to fetch the relevant NBA scoreboard, quarter trends, team rosters, player statistics and injury-aware scouting calculations.
+
+The implementation uses **Vercel AI SDK v6** and **Vercel AI Gateway** with model `openai/gpt-5.4-mini`. No provider key is exposed in client-side code. Vercel OIDC authentication is resolved at runtime; **AI Gateway billing verification is required on the Vercel team before LLM generations can run**. Go to your Vercel team **AI Gateway** dashboard, activate the required payment method and set a budget appropriate for public access. Until billing verification is completed, Dime displays a setup message instead of inventing AI responses.
+
+Dime has a per-instance hourly request safeguard, input length limits, bounded model output, and tool validation. Those safeguards are not a distributed production-grade rate limiter; add a shared rate-limit store, auth, analytics and budget alerts before scaling the publicly accessible chat.
+
+Dime never independently claims to be a calibrated prediction model. NBA matchup percentages remain heuristic, and injury availability and data freshness depend on the upstream provider.
