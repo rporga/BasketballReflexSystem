@@ -103,7 +103,7 @@ function Insights({data,games,prop,team}){
      {next?<><div className="prop-small-grid">
        <Stat label="VS OPPONENT" value={show(vs.mean)} hint={vs.sample+' current-season G'}/>
        <Stat label={homeAway.toUpperCase()+' SPLIT'} value={show(split.mean)} hint={split.sample+' games'}/>
-       <Stat label="SEASON FORM" value={show(season.mean)} hint={PROP_DEFS[prop].label}/>
+       <Stat label="OPP PTS ALLOWED" value={show(data?.opponentForm?.pointsAllowed)} hint={data?.opponentForm?.sample?data.opponentForm.sample+' recent G':'Unavailable'}/>
        <Stat label="NEXT GAME" value={niceDate(next.date)}/>
      </div>
      {vs.sample===0&&<p>No current-season head-to-head sample yet.</p>}</>:
