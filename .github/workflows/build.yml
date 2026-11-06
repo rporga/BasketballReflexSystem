@@ -66,3 +66,6 @@ jobs:
 
       - name: Validate GA4 consent and privacy-safe events
         run: node scripts/test-analytics.mjs
+
+      - name: Validate deep links and shareable NBA sections
+        run: node scripts/test-deep-links.mjs
