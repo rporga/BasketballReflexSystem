@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { parseGamelog, aggregate } from '../../../lib/prop-analytics.js';
+import { officialGameOutcome } from '../../../lib/game-outcome.js';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -41,15 +42,8 @@ function scoreboardLine(board,gameInfo,teamId) {
   const extract=c=>[1,2,3,4].map(q=>n(c.linescores.find(l=>Number(l.period)===q)?.value));
   const q=extract(own),opp=extract(other);
   if(q.some(v=>v===null)||opp.some(v=>v===null))return null;
-  const regulationFor=q.reduce((a,b)=>a+b,0),regulationAgainst=opp.reduce((a,b)=>a+b,0);
-  // Quarter analysis uses regulation periods; win and net margin must use official FINAL scores (including OT).
-  const finalFor=n(own.score),finalAgainst=n(other.score);
-  if(finalFor===null||finalAgainst===null)return null;
-  const overtime=finalFor!==regulationFor||finalAgainst!==regulationAgainst;
-  return {...gameInfo,for:q,against:opp,scored:finalFor,allowed:finalAgainst,
-    regulationFor,regulationAgainst,overtime,otFor:finalFor-regulationFor,otAgainst:finalAgainst-regulationAgainst,
-    won:finalFor>finalAgainst,margin:finalFor-finalAgainst,
-    firstHalf:q[0]+q[1]-(opp[0]+opp[1]),secondHalf:q[2]+q[3]-(opp[2]+opp[3])};
+  const outcome=officialGameOutcome(q,opp,n(own.score),n(other.score));
+  return outcome?{...gameInfo,for:q,against:opp,...outcome}:null;
 }
 async function recentGames(teamId) {
   const schedule=await get(ESPN+'/teams/'+teamId+'/schedule?seasontype=2',300);
