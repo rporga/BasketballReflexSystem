@@ -106,9 +106,8 @@ export async function POST(req){
     const turns=body.messages.filter(x=>x&&['user','assistant'].includes(x.role))
       .slice(-12).map(x=>({role:x.role,content:clean(x.content,1300)})).filter(x=>x.content.trim());
     if(!turns.length||turns.at(-1).role!=='user'||turns.at(-1).content.length>850)return NextResponse.json({error:'Question is too long'},{status:400});
-    if(!(process.env.AI_GATEWAY_API_KEY||process.env.VERCEL_OIDC_TOKEN))return NextResponse.json({
-      error:'AI Gateway authentication is not active for this deployment. Enable Vercel AI Gateway to activate Dime.'
-    },{status:503});
+    // On Vercel Functions, the OIDC token lives on the request context/header,
+    // not necessarily in process.env. The AI SDK Gateway provider resolves it.
     const ip=clean(req.headers.get('x-real-ip')||req.headers.get('x-forwarded-for')?.split(',')[0]||'unknown',80);
     if(!allowed(ip))return NextResponse.json({error:'Dime has reached the hourly usage limit. Please try later.'},{status:429});
     const system=[
