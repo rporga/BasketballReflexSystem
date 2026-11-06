@@ -1,5 +1,6 @@
 import {NextResponse} from 'next/server';
 import {playerProfile,evaluateRotation} from '../../../lib/rotation-analytics.js';
+import {combineLineupStints} from '../../../lib/lineup-stints.js';
 
 export const dynamic='force-dynamic';
 export const runtime='nodejs';
@@ -129,7 +130,7 @@ function teamBox(teamId,roster,latest,liveReport,injuries){
   const onCourt=onIds.map(athleteId=>players.find(p=>p.id===athleteId)).filter(Boolean);
   const onSet=new Set(onCourt.map(p=>p.id));
   return {id:teamId,name:val(roster?.team?.displayName),onCourt,bench:players.filter(p=>!onSet.has(p.id)),
-    players,source,confidence,events,warnings,gameSample:latest.length,
+    players,source,confidence,events,warnings,firstQuarterLineups:combineLineupStints(latest,teamId),gameSample:latest.length,
     latestStarters:latest.map(r=>startersFrom(r,teamId)).find(g=>g.length===5)||[]};
 }
 async function collect(home,away,gameId){
