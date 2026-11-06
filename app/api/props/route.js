@@ -45,6 +45,26 @@ async function nextScheduled(teamId){
     abbreviation:opponent?.team?.abbreviation||'',status:e.status?.type?.state||'pre'};
  }catch{return null;}
 }
+async function opponentOutlook(teamId){
+ if(!validId(teamId))return null;
+ try{
+  const data=await fetchESPN(SITE+'/teams/'+teamId+'/schedule?seasontype=2',600,8500);
+  const games=(data.events||[]).filter(e=>e.status?.type?.completed||e.competitions?.[0]?.status?.type?.completed)
+    .sort((a,b)=>String(b.date).localeCompare(String(a.date))).slice(0,10);
+  const scores=games.map(e=>{
+   const sides=e.competitions?.[0]?.competitors||[];
+   const me=sides.find(c=>String(c.team?.id)===String(teamId));
+   const foe=sides.find(c=>String(c.team?.id)!==String(teamId));
+   const p=c=>parseNumeric(c?.score?.value??c?.score);
+   return {scored:p(me),allowed:p(foe)};
+  }).filter(x=>x.scored!=null&&x.allowed!=null);
+  if(!scores.length)return null;
+  const avg=(xs)=>Math.round(xs.reduce((a,b)=>a+b,0)/xs.length*10)/10;
+  return {sample:scores.length,pointsAllowed:avg(scores.map(x=>x.allowed)),
+    pointsScored:avg(scores.map(x=>x.scored)),
+    wins:scores.filter(x=>x.scored>x.allowed).length};
+ }catch{return null;}
+}
 async function injuryReport(teamId,playerId){
  if(!validId(teamId))return {player:null,teammates:[],asOf:null};
  try{
@@ -103,9 +123,10 @@ export async function GET(request){
   ]);
   const plusMap=new Map(sampled.map((g,i)=>[g.id,boxScores[i]?.status==='fulfilled'?boxScores[i].value:null]));
   for(const game of games)game.stats.PLUSMINUS=plusMap.has(game.id)?plusMap.get(game.id):null;
+  const opponentForm=nextResult?.opponentId?await opponentOutlook(nextResult.opponentId):null;
   const output={
     playerId,season,teamId,team:games[0]?.teamAbbreviation||'',
-    games,metrics:diagnostics(games),nextGame:nextResult,injuries:injResult,
+    games,metrics:diagnostics(games),nextGame:nextResult,opponentForm,injuries:injResult,
     dataQuality:{regularSeasonOnly:true,gameLogCount:games.length,plusMinusGames:games.filter(g=>Number.isFinite(g.stats.PLUSMINUS)).length,
      tracking:false,marketOdds:false},
     fetchedAt:new Date().toISOString(),source:'ESPN NBA'
