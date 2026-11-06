@@ -232,7 +232,7 @@ export default function Home() {
       {tab==='games'&&<Games date={date} setDate={setDate} score={scores} gameId={gameId} setGameId={setGameId}/>}
       {tab!=='players'&&<IntelligencePanel mode={tab} home={intelHome} away={intelAway} report={intelligence.data} loading={intelligence.loading} error={intelligence.error}
         onRefresh={intelligence.refresh} rotation={rotation.data} rotationLoading={rotation.loading}
-        game={tab==='games'?selectedGame:null} scoreboardFetchedAt={scores.data?.fetchedAt}
+        game={tab==='games'?selectedGame:null} gameDetail={tab==='games'?detail.data:null} scoreboardFetchedAt={scores.data?.fetchedAt}
         gameBoxscore={tab==='games'?<Boxscore selected={selectedGame} feed={detail} compact/>:null}/>}
       {tab==='teams'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}
         <Matchup teams={teams} home={home} setHome={setHome} away={away} setAway={setAway} first={formA} second={formB}/></>}
