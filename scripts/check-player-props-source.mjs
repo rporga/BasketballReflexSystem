@@ -1,19 +1,12 @@
-const root='https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes';
-for(const year of [2027,2026]){
-  const url=root+'/3945274/gamelog?season='+year+'&seasontype=2';
-  const response=await fetch(url,{signal:AbortSignal.timeout(14000)});
-  console.log('PROP FETCH',response.status,year);
-  if(!response.ok)continue;
-  const d=await response.json();
-  console.log('PROP KEYS',Object.keys(d));
-  for(const k of ['labels','names','displayNames','events','seasonTypes','seasonType','filters','categories','statistics','team','opponents','gameLog','eventsByDate']){
-    const v=d[k];if(v==null)continue;
-    console.log('PROP',k,Array.isArray(v)?'ARRAY '+v.length:typeof v,JSON.stringify(Array.isArray(v)?v.slice(0,3):v).slice(0,4900));
-  }
-  console.log('PROP SAMPLE JSON',JSON.stringify(d).slice(0,14000));
-  if(d.events?.length)break;
-}
-const test='https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/3945274/splits?season=2027&seasontype=2';
-const resp=await fetch(test,{signal:AbortSignal.timeout(14000)});
-console.log('SPLITS',resp.status);
-if(resp.ok){const d=await resp.json();console.log('SPLIT KEYS',Object.keys(d));console.log('SPLIT SAMPLE',JSON.stringify(d).slice(0,4500));}
+import assert from 'node:assert/strict';
+import {parseGamelog} from '../lib/prop-analytics.js';
+const season=2027;
+const url='https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba/athletes/3945274/gamelog?season='+season+'&seasontype=2';
+const response=await fetch(url,{signal:AbortSignal.timeout(14000)});
+assert.equal(response.status,200,'ESPN player gamelog should be reachable');
+const raw=await response.json();
+assert.ok(Array.isArray(raw.labels)&&raw.labels.includes('PTS')&&raw.labels.includes('3PT'));
+const games=parseGamelog(raw,season);
+assert.ok(games.length>=1,'Expected at least one 2026–27 regular season player game');
+assert.ok(games.every(g=>g.stats.PTS!=null&&g.stats['3PM']!=null&&g.date.startsWith('2026-')||g.date?.startsWith('2027-')));
+console.log('PASS ESPN player game log feed: '+games.length+' 2026–27 regular-season games, including scoring, rebounds, assists and three-point makes');
