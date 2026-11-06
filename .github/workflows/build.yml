@@ -60,3 +60,6 @@ jobs:
 
       - name: Validate Pick & Roll search metadata and report consistency
         run: node scripts/test-seo-and-report.mjs
+
+      - name: Verify uploaded Pick & Roll branding and PWA icons
+        run: node scripts/test-brand-icons.mjs
