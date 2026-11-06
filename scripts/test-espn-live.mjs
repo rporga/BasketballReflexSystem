@@ -10,6 +10,9 @@ assert.equal(x.homeScore,73);assert.equal(x.playId,'b');assert.equal(x.source,'E
 assert.equal(probabilityMatchesScore(x,{status:'in',home:{score:73},away:{score:64}}),true);
 assert.equal(probabilityMatchesScore(x,{status:'in',home:{score:75},away:{score:64}}),false);
 assert.equal(probabilityMatchesScore(x,{status:'post',home:{score:73},away:{score:64}}),false);
+assert.equal(probabilityMatchesScore(x,{status:'in',period:4,clock:'03:11',home:{score:73},away:{score:64}}),false);
+assert.equal(probabilityMatchesScore(x,{status:'in',period:3,clock:'00:15',home:{score:73},away:{score:64}}),false);
+assert.equal(probabilityMatchesScore(x,{status:'in',period:3,clock:'02:40',home:{score:73},away:{score:64}}),true);
 assert.equal(sourceWinProbability({winprobability:[]}),null);
 assert.equal(sourceWinProbability({winprobability:[{homeWinPercentage:4,playId:'b'}]}),null);
 const p=(id)=>({id,profile:{role:3,per36:{pts:18},defense:2},name:id});
