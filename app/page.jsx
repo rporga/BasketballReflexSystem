@@ -7,6 +7,7 @@ import ThemeToggle from './ThemeToggle';
 import BackToTop from './BackToTop';
 import RotationLab from './RotationLab';
 import PlayerPropHub from './PlayerPropHub';
+import FeedStamp from './FeedStamp';
 
 const POLL_LIVE=5000;
 const POLL_IDLE=20000;
@@ -104,7 +105,7 @@ function Boxscore({selected,feed,compact=false}) {
     {!feed.loading && !feed.error && !group?.rows?.length && <Notice>Player boxscore data isn't available yet. It usually appears around tip-off.</Notice>}
     {!!group?.rows?.length && <div className="table-scroll"><table className="box-table"><thead><tr><th>PLAYER</th>{cols.map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>{group.rows.map((r,i)=><tr key={r.id||i}><td><strong>{r.name}</strong><small>{r.position}{r.jersey?' · #'+r.jersey:''}{r.didNotPlay?' · DNP':''}</small></td>{cols.map(c=><td key={c}>{r.stats[c] ?? '—'}</td>)}</tr>)}</tbody></table></div>}
     {!!teamStat?.stats?.length && <><div className="separator"/><h3>Team game statistics · {team?.abbreviation}</h3><div className="stat-grid">{teamStat.stats.slice(0,12).map((s,i)=><div key={i}><span>{s.label}</span><b>{s.value}</b></div>)}</div></>}
-    <p className="smallprint">Source: ESPN · Live updates</p>
+    <p className="smallprint">ESPN · <FeedStamp at={feed.data?.fetchedAt} kind={selected.status==='in'?'live':'score'}/></p>
   </section>;
 }
 function Games({date,setDate,score,gameId,setGameId,detail}) {
@@ -184,7 +185,7 @@ function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,propsFee
         {featured.length>0&&<><div className="heading-row"><h3>{d?.season?String(d.season-1)+'–'+String(d.season).slice(-2):'Current'} Season</h3><small className="muted">{m.sample} games</small></div>
           <div className="player-highlights">{featured.map(([label,v])=><div key={label}><small>{label}</small><strong>{asNumber(v)}</strong></div>)}</div>
           <div className="stats-list">{extra.map(([label,v])=><div key={label}><span>{label}</span><b>{asNumber(v)}</b></div>)}</div></>}
-        <p className="smallprint">ESPN · Regular-season game logs</p>
+        <p className="smallprint">ESPN · Regular-season game logs · <FeedStamp at={d?.fetchedAt} kind="player"/></p>
       </section>
     </div>
     {selected&&<PlayerPropHub player={selected} team={selectedTeam} feed={propsFeed}/>}
@@ -228,6 +229,10 @@ export default function Home() {
     </header>
     <main className="main-stage"><div className="content">
       <div className="workspace-meta"><span>PICK & ROLL <b>/</b> INTELLIGENCE</span><span>{pages.find(x=>x.id===tab)?.label.toUpperCase()}</span></div>
+      {tab==='games'&&<div className="brand-intro" aria-label="About Pick and Roll">
+        <div><h1>Pick &amp; Roll</h1><p className="brand-intro-tagline">Understand the game. Anticipate what happens next.</p></div>
+        <p className="brand-intro-description">Live NBA intelligence that connects player performance, matchups, rotations and statistical projections in one place.</p>
+      </div>}
       {tab==='teams'&&<div className="matchup-selector"><div className="module-line"><div><span>BUILD YOUR MATCHUP</span><h2>Select Teams</h2></div></div>    <section className="panel padded"><div className="heading-row"><h2>Matchup</h2><small className="muted">Most recent 10 completed regular-season games</small></div><div className="team-pickers"><label>HOME TEAM<select value={home} onChange={e=>{setHome(e.target.value);if(e.target.value===away)setAway(home);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><span>VS</span><label>AWAY TEAM<select value={away} onChange={e=>{setAway(e.target.value);if(e.target.value===home)setHome(away);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label></div></section></div>}
       {tab==='games'&&<Games date={date} setDate={setDate} score={scores} gameId={gameId} setGameId={setGameId}/>}
       {tab!=='players'&&<IntelligencePanel mode={tab} home={intelHome} away={intelAway} report={intelligence.data} loading={intelligence.loading} error={intelligence.error}
@@ -243,7 +248,7 @@ export default function Home() {
         {teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}
         <PlayerView teams={teams} teamId={teamId} setTeamId={setTeamId} roster={roster} playerId={playerId} setPlayerId={setPlayerId} propsFeed={propsFeed}/>
       </>}
-      <footer className="site-footer"><span>PICK & ROLL <b>© 2026</b></span><span>Independent NBA analytics · Data: ESPN</span></footer>
+      <footer className="site-footer"><span>PICK & ROLL <b>© 2026</b></span><span>Independent NBA analytics · ESPN <a href="/about">About &amp; model accuracy</a></span></footer>
     </div></main>
     <nav className="mobile-bottom-nav" aria-label="Mobile primary navigation">
       {pages.map(p=><button type="button" key={p.id} className={'mobile-tab '+(tab===p.id?'active':'')}
