@@ -57,3 +57,6 @@ jobs:
 
       - name: Validate observed five-man lineup stints
         run: node scripts/test-lineup-stints.mjs
+
+      - name: Validate Pick & Roll search metadata and report consistency
+        run: node scripts/test-seo-and-report.mjs
