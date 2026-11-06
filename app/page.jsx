@@ -116,7 +116,6 @@ function Games({date,setDate,score,gameId,setGameId,detail}) {
     {score.error && <Notice error retry={score.refresh}>Unable to fetch games: {score.error}</Notice>}
     {!score.loading && !score.error && !games.length && <Notice>No NBA games were returned for this date. Choose another day.</Notice>}
     {!!games.length && <div className="games-grid">{games.map(g=><GameCard key={g.id} game={g} selected={g.id===gameId} click={()=>setGameId(g.id)}/>)}</div>}
-    <Boxscore selected={chosen} feed={detail}/>
   </>;
 }
 function Form({data,loading,error,retry}) {
@@ -199,11 +198,15 @@ export default function Home() {
     <main className="main-stage"><div className="content">
       <div className="workspace-meta"><span>PICK & ROLL <b>/</b> INTELLIGENCE</span><span>{pages.find(x=>x.id===tab)?.label.toUpperCase()}</span></div>
       {tab==='teams'&&<div className="matchup-selector"><div className="module-line"><div><span>BUILD YOUR MATCHUP</span><h2>Select Teams</h2></div></div>    <section className="panel padded"><div className="heading-row"><h2>Matchup</h2><small className="muted">Most recent 10 completed regular-season games</small></div><div className="team-pickers"><label>HOME TEAM<select value={home} onChange={e=>{setHome(e.target.value);if(e.target.value===away)setAway(home);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><span>VS</span><label>AWAY TEAM<select value={away} onChange={e=>{setAway(e.target.value);if(e.target.value===home)setHome(away);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label></div></section></div>}
-      {tab==='games'&&<Games date={date} setDate={setDate} score={scores} gameId={gameId} setGameId={setGameId} detail={detail}/>}
+      {tab==='games'&&<Games date={date} setDate={setDate} score={scores} gameId={gameId} setGameId={setGameId}/>}
+      <IntelligencePanel mode={tab} home={intelHome} away={intelAway} report={intelligence.data} loading={intelligence.loading} error={intelligence.error}
+        onRefresh={intelligence.refresh} rotation={rotation.data} rotationLoading={rotation.loading}
+        player={selectedPlayer} playerStats={stats.data} playerLoading={stats.loading} playerError={stats.error}/>
+      {tab==='games'&&<Boxscore selected={selectedGame} feed={detail}/>}
+      {tab==='teams'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}
+        <Matchup teams={teams} home={home} setHome={setHome} away={away} setAway={setAway} first={formA} second={formB}/></>}
       {tab!=='players'&&<RotationLab key={rotationUrl||'rotation'} mode={tab} data={rotation.data} loading={rotation.loading}
         error={rotation.error} onRefresh={rotation.refresh} prior={intelligence.data?.prediction?.homeWin??null}/>}
-      <IntelligencePanel mode={tab} home={intelHome} away={intelAway} report={intelligence.data} loading={intelligence.loading} error={intelligence.error} onRefresh={intelligence.refresh} player={selectedPlayer} playerStats={stats.data} playerLoading={stats.loading} playerError={stats.error}/>
-      {tab==='teams'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}<Matchup teams={teams} home={home} setHome={setHome} away={away} setAway={setAway} first={formA} second={formB}/></>}
       {tab==='players'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}<PlayerView teams={teams} teamId={teamId} setTeamId={setTeamId} roster={roster} playerId={playerId} setPlayerId={setPlayerId} stats={stats}/></>}
       <footer className="site-footer"><span>PICK & ROLL <b>© 2026</b></span><span>Independent basketball analytics. Data availability varies. Not affiliated with the NBA.</span></footer>
     </div></main>
