@@ -54,6 +54,14 @@ function useRemote(url,interval=0,liveInterval=0) {
   },[url,interval,liveInterval,revision]);
   return {...state,refresh:()=>setRevision(v=>v+1)};
 }
+function TabIcon({id}) {
+  const shared={fill:'none',stroke:'currentColor',strokeWidth:1.85,strokeLinecap:'round',strokeLinejoin:'round'};
+  return <svg className="mobile-tab-icon" viewBox="0 0 24 24" width="23" height="23" aria-hidden="true" focusable="false" {...shared}>
+    {id==='games'?<><rect x="3.25" y="4.25" width="17.5" height="15.5" rx="3.25"/><path d="M3.5 9h17"/><path d="M7.4 14.5h2.2l1.5-2.6 2.3 5 1.5-2.4h1.7"/></>:
+      id==='teams'?<><path d="M4 17.5 9.3 12l3.8 3.8L20 8.5"/><path d="M14.5 8.5H20V14"/><path d="M4 6.5h6M4 10h3.5"/></>:
+      <><circle cx="9" cy="8.25" r="3.25"/><path d="M2.9 19.5v-1.25c0-3 2.5-5.25 6.1-5.25s6.1 2.25 6.1 5.25v1.25H2.9Z"/><path d="M16 5.4a3.25 3.25 0 0 1 0 6.2M17.7 14.1c2 .7 3.4 2.2 3.4 4.2v1.2h-3.5"/></>}
+  </svg>;
+}
 function Logo({team,size=36}) {
   return team?.logo?<img src={team.logo} alt="" className="team-logo" style={{width:size,height:size}}/>:<span className="team-fallback">{team?.abbreviation || 'NBA'}</span>;
 }
@@ -193,6 +201,14 @@ export default function Home() {
       {tab==='players'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}<PlayerView teams={teams} teamId={teamId} setTeamId={setTeamId} roster={roster} playerId={playerId} setPlayerId={setPlayerId} stats={stats}/></>}
       <footer className="site-footer"><span>PICK & ROLL <b>© 2026</b></span><span>Independent basketball analytics. Data availability varies. Not affiliated with the NBA.</span></footer>
     </div></main>
+    <nav className="mobile-bottom-nav" aria-label="Mobile primary navigation">
+      {pages.map(p=><button type="button" key={p.id} className={'mobile-tab '+(tab===p.id?'active':'')}
+        aria-current={tab===p.id?'page':undefined}
+        onClick={()=>{setTab(p.id);window.scrollTo({top:0,behavior:'instant'});}}>
+        <span className="mobile-tab-symbol"><TabIcon id={p.id}/></span>
+        <span className="mobile-tab-label">{p.id==='games'?'Games':p.id==='teams'?'Matchups':'Players'}</span>
+      </button>)}
+    </nav>
     <DimeChat context={{tab,gameId:tab==='games'?selectedGame?.id||'':'',homeId:intelHome?.id||'',awayId:intelAway?.id||'',teamId:teamId||'',playerId:tab==='players'?playerId||'':''}}/>
   </div>;
 }
