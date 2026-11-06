@@ -2,6 +2,7 @@
 import {useEffect,useMemo,useState} from 'react';
 import {evaluateRotation} from '../lib/rotation-analytics.js';
 import {probabilityMatchesScore} from '../lib/espn-live.js';
+import FeedStamp from './FeedStamp';
 
 const num=(v,d=1)=>v==null?'—':Number(v).toFixed(d);
 const delta=v=>v>0?'+':'';
@@ -86,7 +87,7 @@ export default function RotationLab({mode,data,loading,error,onRefresh,prior,liv
       <button className="intel-refresh" onClick={onRefresh}>Update lineup ↻</button></div>
     <div className="rotation-context">
       <span className="rotation-badge">{data.game?.status==='in'?'LIVE LINEUPS':data.game?.status==='post'?'FINAL':'RECENT STARTERS'}</span>
-      <span>{home.gameSample} / {away.gameSample} recent games</span>
+      <span>{home.gameSample} / {away.gameSample} recent games · <FeedStamp at={data.fetchedAt} kind={data.game?.status==='in'?'live':'rotation'}/></span>
     </div>
     <div className="rotation-squads"><Squad team={away} ids={A}/><Squad team={home} ids={H}/></div>
     {!!((home.firstQuarterLineups||[]).length||(away.firstQuarterLineups||[]).length)&&
