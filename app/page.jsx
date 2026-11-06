@@ -82,11 +82,11 @@ function Badge({status,text}) {
   return <span className={'badge '+(status==='in'?'live':status==='post'?'final':'upcoming')}><i/>{status==='in'?'LIVE · ':''}{text || (status==='post'?'Final':'Scheduled')}</span>;
 }
 function GameCard({game,selected,click}) {
-  return <button className={'game-card '+(selected?'selected':'')} onClick={click}>
+  return <Link href={gamesPath(game.id)} className={'game-card '+(selected?'selected':'')} onClick={click}>
     <div className="game-card-top"><Badge status={game.status} text={game.statusName}/><span>{game.start?new Date(game.start).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'TBC'}</span></div>
     {[game.away,game.home].map((t,i)=><div className="game-line" key={i}><Logo team={t}/><div><strong>{t?.abbreviation || '—'}</strong><small>{t?.record}</small></div><b>{t?.score ?? '—'}</b></div>)}
     <div className="game-card-foot">{game.venue || 'NBA GAME'}<span>VIEW DETAILS ↗</span></div>
-  </button>;
+  </Link>;
 }
 function Boxscore({selected,feed,compact=false}) {
   const [side,setSide]=useState('away');
@@ -176,11 +176,11 @@ function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,propsFee
         </label>
         {roster.loading&&<Notice>Loading team roster…</Notice>}
         {roster.error&&<Notice error retry={roster.refresh}>{roster.error}</Notice>}
-        <div className="roster-list">{players.map(p=><button key={p.id} type="button"
-          className={p.id===playerId?'active':''} aria-pressed={p.id===playerId} onClick={()=>{onPlayerSelect(p.id);trackEvent('player_selected',{player_id:p.id,team_id:teamId});}}>
+        <div className="roster-list">{players.map(p=><Link key={p.id} href={playersPath(p.id)}
+          className={p.id===playerId?'active':''} aria-current={p.id===playerId?'page':undefined} onClick={()=>{onPlayerSelect(p.id,false);trackEvent('player_selected',{player_id:p.id,team_id:teamId});}}>
           <span className="headshot">{p.headshot?<img src={p.headshot} width="42" height="42" alt=""/>:p.jersey||'•'}</span>
           <span><strong>{p.name}</strong><small>{p.position}{p.jersey?' · #'+p.jersey:''}</small></span><b aria-hidden="true">›</b>
-        </button>)}</div>
+        </Link>)}</div>
       </section>
       <section className="panel padded">
         <div className="heading-row"><h2>Player Profile</h2><span className="muted">Current Season</span></div>
@@ -216,15 +216,14 @@ export default function Home() {
   },[pathname]);
   const onGameSelect=id=>{
     setGameId(id);trackEvent('game_selected',{game_id:id});
-    router.push(gamesPath(id),{scroll:false});
   };
   const onTeamSelect=id=>{
     setTeamId(id);setPlayerId('');
     router.push('/players',{scroll:false});
   };
-  const onPlayerSelect=id=>{
+  const onPlayerSelect=(id,navigate=true)=>{
     setPlayerId(id);
-    router.push(playersPath(id),{scroll:false});
+    if(navigate)router.push(playersPath(id),{scroll:false});
   };
   const onBrowseDate=next=>{
     setDate(next);
