@@ -1,3 +1,4 @@
+// Production end-to-end: real OpenAI generation with live NBA analysis tools.
 const url='https://basketballreflexsystem.vercel.app/api/dime';
 const controller=new AbortController();
 const timeout=setTimeout(()=>controller.abort(),90000);
