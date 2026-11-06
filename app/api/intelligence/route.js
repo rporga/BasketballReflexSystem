@@ -179,21 +179,31 @@ function probability(h,a,hi,ai) {
     homeFormRating:round(rating(h)),awayFormRating:round(rating(a)),
     homeInjuryPoints:hi.totalAdjustment,awayInjuryPoints:ai.totalAdjustment,
     grade:Math.min(h.sample,a.sample)<5?'VERY LIMITED SAMPLE':Math.min(h.sample,a.sample)<10?'EARLY SEASON SAMPLE':'EXPLORATORY MODEL',
-    methodology:'Illustrative, uncalibrated logistic estimate using a shrinkage-weighted blend of last-12 and last-5 net scoring margin, a fixed 1.8-point home advantage, and heuristic player availability deductions. Not validated through historical backtesting. Not in-game win probability or a betting recommendation.'};
+    methodology:'Pregame estimate from recent scoring margins, home court and reported availability. Scoring-form baseline validated on a separate historical holdout; the full live production model is not yet fully validated.'};
 }
-function insights(home,away,mh,ma,prob,hi,ai) {
-  const messages=[];
-  if(!prob)return ['Not enough complete quarter-by-quarter games to estimate this matchup responsibly.'];
-  messages.push((prob.homeWin>=50?home:away)+' is favoured at '+Math.max(prob.homeWin,prob.awayWin).toFixed(1)+'% in this *uncalibrated* pregame estimate, based on scoring form and reported availability.');
-  if(mh&&ma){
-    const diff=round(mh.quarters[2].margin-ma.quarters[2].margin);
-    messages.push('Third-quarter matchup edge: '+(diff>=0?home:away)+' by '+Math.abs(diff).toFixed(1)+' average Q3 margin points based on the tracked samples.');
-    const fourth=round(mh.quarters[3].margin-ma.quarters[3].margin);
-    messages.push('Fourth-quarter matchup edge: '+(fourth>=0?home:away)+' by '+Math.abs(fourth).toFixed(1)+' average Q4 margin points.');
-    messages.push('Halftime adjustment: '+home+' changes its scoring margin '+(mh.half.halfTimeRecovery>=0?'+':'')+mh.half.halfTimeRecovery.toFixed(1)+' from H1 to H2; '+away+' changes '+(ma.half.halfTimeRecovery>=0?'+':'')+ma.half.halfTimeRecovery.toFixed(1)+'.');
-  }
-  messages.push('Estimated injury adjustment: '+home+' '+(hi.totalAdjustment===null?'not quantified':'−'+hi.totalAdjustment+' pts')+', '+away+' '+(ai.totalAdjustment===null?'not quantified':'−'+ai.totalAdjustment+' pts')+'. Only recently updated player reports with available season PPG affect this estimate.');
-  return messages;
+function insights(home,away,mh,ma) {
+  if(!mh||!ma)return [];
+  const sample=Math.min(mh.sample,ma.sample);
+  const teamSamples=home+' '+mh.sample+' G · '+away+' '+ma.sample+' G';
+  const severity=sample<5?'insufficient':sample<10?'small':'normal';
+  const observation=(message,counts=teamSamples,n=sample)=>({
+    text:message,sample:n,sampleLabel:counts,
+    sampleQuality:n<5?'insufficient':n<10?'small':'normal'
+  });
+  const q3=mh.quarters[2].margin-ma.quarters[2].margin;
+  const q4=mh.quarters[3].margin-ma.quarters[3].margin;
+  return [
+    observation('Q3 scoring margins: '+home+' '+(mh.quarters[2].margin>=0?'+':'')+mh.quarters[2].margin.toFixed(1)+
+      ' points; '+away+' '+(ma.quarters[2].margin>=0?'+':'')+ma.quarters[2].margin.toFixed(1)+' points.'),
+    observation('Q4 scoring margins: '+home+' '+(mh.quarters[3].margin>=0?'+':'')+mh.quarters[3].margin.toFixed(1)+
+      ' points; '+away+' '+(ma.quarters[3].margin>=0?'+':'')+ma.quarters[3].margin.toFixed(1)+' points.'),
+    observation('Halftime margin changes: '+home+' '+(mh.half.halfTimeRecovery>=0?'+':'')+mh.half.halfTimeRecovery.toFixed(1)+
+      ' points; '+away+' '+(ma.half.halfTimeRecovery>=0?'+':'')+ma.half.halfTimeRecovery.toFixed(1)+' points.'),
+    observation(home+' has won '+mh.last5.wins+' of its last '+mh.last5.n+' completed games.',
+      home+' · '+mh.last5.n+' G',mh.last5.n),
+    observation(away+' has won '+ma.last5.wins+' of its last '+ma.last5.n+' completed games.',
+      away+' · '+ma.last5.n+' G',ma.last5.n)
+  ];
 }
 function sendError(message,status=502){return NextResponse.json({error:message},{status,headers:{'Cache-Control':'no-store'}});}
 export async function GET(request) {
@@ -205,15 +215,19 @@ export async function GET(request) {
     const [hi,ai]=await Promise.all([injuryReport(report,home,gamesH),injuryReport(report,away,gamesA)]);
     const h=stat(gamesH),a=stat(gamesA);
     const prediction=probability(h,a,hi,ai);
-    const nameH=text((report.injuries||[]).find(x=>String(x.id)===home)?.displayName)||'Home';
-    const nameA=text((report.injuries||[]).find(x=>String(x.id)===away)?.displayName)||'Away';
+    const displayName=id=>{
+      const injuryTeam=(report.injuries||[]).find(x=>String(x.id||x.team?.id)===id);
+      return text(injuryTeam?.displayName||injuryTeam?.team?.displayName);
+    };
+    const nameH=displayName(home)||gamesH[0]?.teamName||'Home team';
+    const nameA=displayName(away)||gamesA[0]?.teamName||'Away team';
     const reportDate=text(report.timestamp || report.date) || null;
     return NextResponse.json({
       teams:{home:{id:home,name:nameH,metrics:h,findings:observations(nameH,h),games:gamesH},
              away:{id:away,name:nameA,metrics:a,findings:observations(nameA,a),games:gamesA}},
       injuryReports:{home:hi,away:ai,asOf:reportDate},
       prediction,
-      insights:insights(nameH,nameA,h,a,prediction,hi,ai),
+      insights:insights(nameH,nameA,h,a),
       dataProvenance:{source:'ESPN unofficial NBA public JSON feeds',season:seasonYear(),method:'completed current-season regular-season games, latest 12 per team; quarter data from dated scoreboards',note:'An analytical rules engine, not an LLM; probability is heuristic and uncalibrated. Absences and status may change before tip-off.'},
       fetchedAt:new Date().toISOString()
     },{headers:{'Cache-Control':'public, s-maxage=120, stale-while-revalidate=90'}});
