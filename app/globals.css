@@ -1369,3 +1369,17 @@ html[data-theme="dark"] .prop-bar-slot.selected .prop-bar{outline-color:#f1f1f1}
   .prop-selected-game{font-size:10px;justify-content:start;gap:5px 11px}
   .prop-selected-game strong{font-size:12px}
 }
+
+
+/* Keep Player Explorer concise instead of placing the prop report below a 660px roster. */
+.players-layout .roster-list{max-height:330px}
+.player-mobile-picker{display:none}
+@media(max-width:950px){
+  .player-mobile-picker{display:flex;flex-direction:column;gap:7px;font-size:10px;font-weight:820;letter-spacing:.055em;
+    color:var(--muted);margin:17px 0 1px}
+  .player-mobile-picker select{width:100%;max-width:100%;height:46px;appearance:auto;border:1px solid var(--line-strong);
+    border-radius:11px;padding:0 12px;background:var(--paper);color:var(--ink);font-size:14px;letter-spacing:0;font-weight:700}
+  .players-layout .roster-list{display:none}
+  .players-layout .panel{padding:17px}
+  .players-layout .input-label{margin:14px 0}
+}
