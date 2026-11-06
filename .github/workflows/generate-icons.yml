@@ -1,0 +1,37 @@
+name: Generate PWA app icons
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/generate-icons.yml'
+      - 'public/app-icon.svg'
+      - 'scripts/generate-pwa-icons.mjs'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  icons:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install icon rendering dependency
+        run: npm install --no-save --no-audit --no-fund sharp
+      - name: Generate PNG icons
+        run: node scripts/generate-pwa-icons.mjs
+      - name: Commit binary icons to the repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/icons app/apple-icon.png
+          if git diff --cached --quiet; then
+            echo "Generated icons already match tracked icons"
+            exit 0
+          fi
+          git commit -m "Generate installable PNG app icons from Pick and Roll mark"
+          git pull --rebase origin main
+          git push origin HEAD:main
