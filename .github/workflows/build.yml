@@ -63,3 +63,6 @@ jobs:
 
       - name: Verify uploaded Pick & Roll branding and PWA icons
         run: node scripts/test-brand-icons.mjs
+
+      - name: Validate GA4 consent and privacy-safe events
+        run: node scripts/test-analytics.mjs
