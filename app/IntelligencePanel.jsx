@@ -151,7 +151,8 @@ function Model({report,home,away,rotation,rotationLoading,game,scoreboardFetched
   const official=gameDetail?.winProbability;
   const sourcedLive=Boolean(probabilityMatchesScore(official,game));
   // If ESPN is temporarily one possession behind the scoreboard, never show its older probability.
-  const fallbackLive=game?.status==='in'&&!official&&estimate?.kind==='live';
+  // Keep the score-driven estimate available when ESPN's play-level model stops updating.
+  const fallbackLive=game?.status==='in'&&!sourcedLive&&estimate?.kind==='live';
   const isLive=sourcedLive||fallbackLive;
   const isFinal=estimate?.kind==='final';
   const isLiveUnavailable=game?.status==='in'&&!isLive;
