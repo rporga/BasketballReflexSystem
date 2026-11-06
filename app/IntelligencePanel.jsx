@@ -3,6 +3,7 @@
 import {useMemo,useState} from 'react';
 import {liveWinEstimate} from '../lib/live-win-model.js';
 import {probabilityMatchesScore} from '../lib/espn-live.js';
+import FeedStamp from './FeedStamp';
 
 const signed = (v,d=1) => v==null?'—':(v>0?'+':'')+Number(v).toFixed(d);
 const fmt = v => v==null?'—':Number(v).toFixed(1);
@@ -10,7 +11,21 @@ function Evidence({source}) {
   return <div className="evidence-foot"><span>SOURCE</span><span>{source}</span></div>;
 }
 function Scouting({items=[]}) {
-  return <div className="scout-list">{items.map((item,index)=><div className="scout-item" key={index}><span className="scout-index">{String(index+1).padStart(2,'0')}</span><p>{item.replaceAll('*','')}</p></div>)}</div>;
+  if(!items.length)return <p className="intel-muted">Not enough recent games to compare these teams yet.</p>;
+  return <div className="scout-list">{items.map((item,index)=>{
+    const text=typeof item==='string'?item:item.text||'';
+    const count=typeof item==='object'?item.sample:0;
+    const quality=typeof item==='object'?item.sampleQuality:'normal';
+    return <div className={'scout-item '+(quality==='insufficient'?'scout-item-limited':'')} key={index}>
+      <span className="scout-index">{String(index+1).padStart(2,'0')}</span>
+      <div className="scout-observation">
+        <p>{text.replaceAll('*','')}</p>
+        {typeof item==='object'&&<div className="scout-sample"><span>{item.sampleLabel||count+' games'}</span>
+          {quality!=='normal'&&<b>{quality==='small'?'SMALL SAMPLE':'LIMITED SAMPLE'}</b>}
+        </div>}
+      </div>
+    </div>;
+  })}</div>;
 }
 function QuarterLens({title,metrics,games,side}) {
   const [expanded,setExpanded]=useState(false);
@@ -31,7 +46,12 @@ function InjuryList({report,title}) {
     {!rows.length?<p className="intel-muted">No active-status injuries returned in the current feed. That does not guarantee a full-strength roster.</p>:rows.map((p,i)=><div className="injury-person" key={p.id||i}>
       <div className="injury-person-main"><b>{p.name}</b><span className={'status-token '+p.status.toLowerCase().replace(/[^a-z]/g,'')}>{p.status}</span></div>
       <p>{p.detail || p.injury || 'No injury details supplied.'}</p>
-      <div className="injury-meta"><span>{p.ppg!=null?fmt(p.ppg)+' PPG':'Season PPG unavailable'}</span><span>{p.includedInEstimate?'Impact: −'+fmt(p.estimatedPoints)+' pts':'Impact unavailable'}</span></div>
+      <div className="injury-meta"><span>{p.ppg!=null?fmt(p.ppg)+' SEASON PPG'+(p.seasonGames?' · '+p.seasonGames+' G':''):'Season PPG: no game logs'}</span>
+        <span>{p.includedInEstimate?'Impact: −'+fmt(p.estimatedPoints)+' pts':
+          p.superseded?'No impact: player returned':
+          p.previouslyContributing===false&&p.ppg!=null?'No additional impact: already in team form':
+          p.ppg==null?'Impact: no season games':
+          'Impact not calculated: status needs confirmation'}</span></div>
     </div>)}
     <div className="injury-team-total"><span>EST. IMPACT</span><strong>{report?.totalAdjustment==null?'Not quantified':'−'+fmt(report.totalAdjustment)+' pts'}</strong></div>
   </div>;
@@ -77,18 +97,18 @@ function StartingFives({rotation,loading,home,away}) {
       <span className="model-lineups-note">{gameStatus==='in'?'LIVE LINEUP':'LATEST STARTERS'}</span></div>
     {available?<div className="model-lineups-grid">
       {[['away',away],['home',home]].map(([side,team])=>{
-        const squad=teams[side],liveVerified=gameStatus==='in'&&squad.source==='play-by-play reconstructed';
+        const squad=teams[side],liveVerified=gameStatus==='in'&&squad.source==='play-by-play estimate';
         const label=liveVerified?'LIVE · PBP':gameStatus==='in'?'UNCONFIRMED':gameStatus==='post'?'GAME FIVE':'RECENT FIVE';
         return <div className="model-lineups-team" key={side}>
           <div className="model-lineups-team-heading"><strong>{team?.abbreviation||squad.name}</strong><span>{label}</span></div>
           <div className="model-lineups-players">{squad.onCourt.map(player=><div className="model-lineups-player" key={player.id}>
             <div className="model-lineups-avatar">{player.headshot?<img src={player.headshot} alt="" loading="lazy"/>:<span>{player.jersey||'•'}</span>}</div>
-            <div><b>{player.name}</b><small>{player.position||'—'} · {player.profile?.pts!=null?player.profile.pts.toFixed(1)+' PPG':'Recent form unavailable'}</small></div>
+            <div><b>{player.name}</b><small>{player.position||'—'} · {player.profile?.pts!=null?player.profile.pts.toFixed(1)+' L5 PPG': 'L5 stats unavailable'}</small></div>
           </div>)}</div>
         </div>;
       })}
     </div>:<p className="intel-muted">{loading?'Checking starters and game substitutions…':'Reliable five-player lineups are not available from the current source.'}</p>}
-    <p className="model-lineups-disclaimer">ESPN · Live lineups inferred from substitutions; pregame five from the latest game.</p>
+    <p className="model-lineups-disclaimer">ESPN · L5 stats from recent boxscores. Live lineups inferred from substitutions.</p>
   </div>;
 }
 function LiveScore({game,fetchedAt}){
@@ -121,7 +141,7 @@ function LiveScore({game,fetchedAt}){
       </div>
     </div>:null}
     <div className="live-score-freshness">{'ESPN game data'}
-      {fetchedAt?<span> · Feed fetched {new Date(fetchedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>:null}
+      <span> · <FeedStamp at={fetchedAt} kind={inProgress?'live':'score'}/></span>
     </div>
   </div>;
 }
@@ -160,6 +180,7 @@ function Model({report,home,away,rotation,rotationLoading,game,scoreboardFetched
     isFinal||isLiveUnavailable?null:scenarioResult?.prob??null;
   const hasEstimate=prob!=null&&Number.isFinite(prob);
   const favoured=hasEstimate?(prob>=50?home:away):null;
+  const tooClose=hasEstimate&&!isLive&&prob>=45&&prob<=55;
   return <div className="intel-surface model-surface">
     {game?<LiveScore game={game} fetchedAt={scoreboardFetchedAt}/>:null}
     <div className="model-top"><div><span className="intel-kicker">{isLive?'LIVE GAME STATE':isFinal?'FINAL GAME':game?'BEFORE TIP-OFF':'MATCHUP MODEL'}</span>
@@ -167,8 +188,8 @@ function Model({report,home,away,rotation,rotationLoading,game,scoreboardFetched
       <div className="model-grade">{sourcedLive?'ESPN LIVE':isLive?'LIVE · ESTIMATE':isFinal?'FINAL':pred?'PREGAME · ESTIMATE':'PENDING'}</div>
     </div>
     {isFinal?<div className="live-no-prob">The game is finished. The score above is the result; a live win forecast no longer applies.</div>:
-    hasEstimate?<><div className="prob-heading"><div><span>{'FAVOURED TO WIN'}</span>
-      <strong>{favoured?.name}</strong></div><b>{Math.max(prob,100-prob).toFixed(1)}<small>%</small></b></div>
+    hasEstimate?<><div className="prob-heading"><div><span>{tooClose?'PREGAME OUTLOOK':'FAVOURED TO WIN'}</span>
+      <strong>{tooClose?'Too close to call':favoured?.name}</strong></div><b>{Math.max(prob,100-prob).toFixed(1)}<small>%</small></b></div>
       <div className="prob-vs"><span>{home?.abbreviation} {prob.toFixed(1)}%</span><span>{away?.abbreviation} {(100-prob).toFixed(1)}%</span></div>
       <div className="prob-track" role="img" aria-label={home?.name+' '+prob.toFixed(1)+' percent estimated chance; '+away?.name+' '+(100-prob).toFixed(1)+' percent'}><div style={{width:prob+'%'}}/></div>
     </>:<p className="live-no-prob">{isLiveUnavailable?'Updating the in-game probability…':pred?'Game state estimate unavailable.':'Win probability is unavailable until the recent team data can be analysed.'}</p>}
@@ -200,10 +221,10 @@ export default function IntelligencePanel({mode,home,away,report,loading,error,o
       {!report&&(loading?<div className="intel-loading"><p>Analysing recent games, quarter patterns and injuries… The live score and game estimate above continue updating.</p></div>:
         error?<div className="intel-surface"><p className="intel-muted">{error}</p><button className="intel-refresh" onClick={onRefresh}>Retry scouting ↻</button></div>:null)}
       {report&&<>
-      <div className="intel-surface scouting-surface"><div className="model-top"><div><span className="intel-kicker">SCOUTING NOTES</span><h3>Key Takeaways</h3></div><span className="scout-count">{report.insights?.length||0} SIGNALS</span></div><Scouting items={report.insights||[]}/></div>
+      <div className="intel-surface scouting-surface"><div className="model-top"><div><span className="intel-kicker">SCOUTING NOTES</span><h3>Observations</h3></div><span className="scout-count">{report.insights?.length||0} TRENDS</span></div><Scouting items={report.insights||[]}/><p className="scout-context">Observations describe past results, not future outcomes.</p></div>
       <div className="intel-surface quarter-wide"><div className="model-top"><div><span className="intel-kicker">TEAM TENDENCIES</span><h3>Quarter Analysis</h3></div><span className="scout-count">ACTUAL SCORES</span></div><div className="lens-pills"><button className={view==='all'?'active':''} onClick={()=>setView('all')}>Both teams</button><button className={view==='home'?'active':''} onClick={()=>setView('home')}>{home.abbreviation}</button><button className={view==='away'?'active':''} onClick={()=>setView('away')}>{away.abbreviation}</button></div><div className={'quarter-compare '+(view!=='all'?'single':'')}>{(view==='all'||view==='home')&&<QuarterLens title={home.name} metrics={h?.metrics} games={h?.games} side="HOME"/>}{(view==='all'||view==='away')&&<QuarterLens title={away.name} metrics={a?.metrics} games={a?.games} side="AWAY"/>}</div><div className="quarter-context">Net = scored − allowed · Q won = winning quarters.</div></div>
       <div className="intel-surface injury-wide"><div className="model-top"><div><span className="intel-kicker">AVAILABILITY</span><h3>Injury Report</h3></div><span className="scout-count">UPDATED REPORT</span></div><div className="injury-grid"><InjuryList title={home.name} report={report.injuryReports?.home}/><InjuryList title={away.name} report={report.injuryReports?.away}/></div></div>
-      <div className="intel-provenance"><span>SOURCE · ESPN · {h?.metrics?.sample||0} HOME / {a?.metrics?.sample||0} AWAY GAMES</span><span>{report.fetchedAt?'ANALYSIS '+new Date(report.fetchedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):''}</span></div>
+      <div className="intel-provenance"><span>ESPN · {h?.metrics?.sample??'—'} HOME / {a?.metrics?.sample??'—'} AWAY GAMES</span><FeedStamp at={report.fetchedAt} kind="analysis"/></div>
       </>}
     </div>}
   </section>;
