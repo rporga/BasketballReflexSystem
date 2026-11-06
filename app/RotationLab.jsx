@@ -83,8 +83,8 @@ export default function RotationLab({mode,data,loading,error,onRefresh,prior,liv
     <div className="rotation-heading rotation-explorer-heading"><div><span className="intel-kicker">SCOUTING / LINEUP DEEP DIVE</span><h2>Rotation Analysis</h2></div>
       <button className="intel-refresh" onClick={onRefresh}>Update lineup ↻</button></div>
     <div className="rotation-context">
-      <span className="rotation-badge">{data.game?.status==='in'?'LIVE · EXPERIMENTAL':data.game?.status==='post'?'FINAL GAME DATA':'RECENT STARTING FIVES'}</span>
-      <span>Recent form: {home.gameSample} / {away.gameSample} games</span>
+      <span className="rotation-badge">{data.game?.status==='in'?'LIVE LINEUPS':data.game?.status==='post'?'FINAL':'RECENT STARTERS'}</span>
+      <span>{home.gameSample} / {away.gameSample} recent games</span>
     </div>
     <div className="rotation-squads"><Squad team={away} ids={A}/><Squad team={home} ids={H}/></div>
     {(home.warnings?.length||away.warnings?.length)?<p className="rotation-warning">{[...(home.warnings||[]),...(away.warnings||[])].join(' · ')}</p>:null}
@@ -109,18 +109,18 @@ export default function RotationLab({mode,data,loading,error,onRefresh,prior,liv
         </div>
         <div className="rotation-control-card">
           <h3><span>02</span> Defensive Matchup</h3>
-          <p className="rotation-usage">Try a primary defender assignment. This is a hypothesis, not observed possession-level tracking.</p>
+          <p className="rotation-usage">Try a defensive matchup.</p>
           <div className="rotation-fields"><label>ATTACKER<select value={attackerId}
             onChange={e=>{setAttackerId(e.target.value);setDefenderId('');}}><option value="">Choose an offensive player</option>
             {all.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
             <label>ASSIGNED DEFENDER<select value={defenderId} disabled={!attacker} onChange={e=>setDefenderId(e.target.value)}>
               <option value="">Choose a defender</option>{opposing.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
             </select></label></div>
-          <p className="rotation-usage">Defensive impact uses recent steals, blocks and rebounds as a limited proxy. It does not measure who actually guarded whom.</p>
+          <p className="rotation-usage"></p>
         </div>
       </div>
       <div className="rotation-forecast">
-        <div className="rotation-forecast-top"><span className="intel-kicker">EFFECT OF YOUR CHANGES</span><span className="rotation-badge">UNCALIBRATED</span></div>
+        <div className="rotation-forecast-top"><span className="intel-kicker">EFFECT OF YOUR CHANGES</span><span className="rotation-badge">WHAT-IF ESTIMATE</span></div>
         {evaluation?.available?(changed?<><div className="rotation-stat-grid">
           <div><span>BASELINE HOME</span><strong>{num(evaluation.baselineHome)}%</strong></div>
           <div><span>SIMULATED HOME</span><strong>{num(evaluation.scenarioHome)}%</strong></div>
@@ -130,11 +130,11 @@ export default function RotationLab({mode,data,loading,error,onRefresh,prior,liv
           <b>{evaluation.defensiveMatchup.attacker} vs {evaluation.defensiveMatchup.defender}</b>
           <p>Hypothetical scoring over 10 minutes: {num(evaluation.defensiveMatchup.expectedPoints10)} → {num(evaluation.defensiveMatchup.versusDefender10)} points.</p></div>}
         <p className="rotation-usage">Player samples: {evaluation.samples.home}/5 and {evaluation.samples.away}/5.
-        {evaluation.baselineProvided?' Starting odds use the existing historical scouting model.':' No historical prior: 50/50 is used as a neutral starting assumption.'}
-        {evaluation.mode==='LIVE EXPLORATORY'?' The displayed baseline also considers the current score and time remaining.':''}</p>
+        {evaluation.baselineProvided?'':''}
+        {evaluation.mode==='LIVE EXPLORATORY'?'':''}</p>
         </>:<p className="rotation-usage">The baseline matchup is shown above in the Scouting Report. Make a substitution or select a defensive assignment to compare the hypothetical outcome here.</p>)
           :<p className="rotation-usage">{evaluation?.reason||'Not enough usable player data for a lineup estimate.'}</p>}
-        <p className="rotation-disclaimer">Exploratory only, not validated betting odds. Uses short-term player production proxies, not measured lineup chemistry, actual defender assignments, or a backtested possession model. Missing player statistics are unknown, not zero.</p>
+        <p className="rotation-disclaimer">Hypothetical changes · ESPN data</p>
       </div>
     </div>
       </div>
