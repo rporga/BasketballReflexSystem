@@ -2,6 +2,7 @@
 
 import {useMemo,useState} from 'react';
 import {liveWinEstimate} from '../lib/live-win-model.js';
+import {probabilityMatchesScore} from '../lib/espn-live.js';
 
 const signed = (v,d=1) => v==null?'—':(v>0?'+':'')+Number(v).toFixed(d);
 const fmt = v => v==null?'—':Number(v).toFixed(1);
@@ -124,7 +125,7 @@ function LiveScore({game,fetchedAt}){
     </div>
   </div>;
 }
-function Model({report,home,away,rotation,rotationLoading,game,scoreboardFetchedAt}){
+function Model({report,home,away,rotation,rotationLoading,game,scoreboardFetchedAt,gameDetail}){
   const pred=report?.prediction;
   const [scenario,setScenario]=useState('weighted');
   const scenarioResult=useMemo(()=>{
@@ -137,7 +138,8 @@ function Model({report,home,away,rotation,rotationLoading,game,scoreboardFetched
         const st=p.status.toLowerCase().replace(/[^a-z]/g,'');
         if(!p.includedInEstimate)return total;
         if(!['out','doubtful','questionable','daytoday','probable'].includes(st))return total;
-        return total+Math.min(3.5,(p.ppg||0)*.20);
+        const weight={out:1,doubtful:.8,questionable:.4,daytoday:.35,probable:.1}[st]||1;
+        return total+Math.min(3.5,(p.estimatedPoints||0)/weight);
       },0);
       return Math.min(7,amount);
     };
@@ -146,24 +148,29 @@ function Model({report,home,away,rotation,rotationLoading,game,scoreboardFetched
     return {prob:100/(1+Math.exp(-margin/8.8)),homeDeduction:h,awayDeduction:a};
   },[pred,report?.injuryReports,scenario]);
   const estimate=game?liveWinEstimate(game,pred?.homeWin??null):null;
-  const isLive=estimate?.kind==='live';
+  const official=gameDetail?.winProbability;
+  const sourcedLive=Boolean(probabilityMatchesScore(official,game));
+  // If ESPN is temporarily one possession behind the scoreboard, never show its older probability.
+  const fallbackLive=game?.status==='in'&&!official&&estimate?.kind==='live';
+  const isLive=sourcedLive||fallbackLive;
   const isFinal=estimate?.kind==='final';
   const isLiveUnavailable=game?.status==='in'&&!isLive;
-  const prob=isLive?estimate.homePct:isFinal||isLiveUnavailable?null:scenarioResult?.prob??null;
+  const prob=sourcedLive?official.home:fallbackLive?estimate.homePct:
+    isFinal||isLiveUnavailable?null:scenarioResult?.prob??null;
   const hasEstimate=prob!=null&&Number.isFinite(prob);
   const favoured=hasEstimate?(prob>=50?home:away):null;
   return <div className="intel-surface model-surface">
     {game?<LiveScore game={game} fetchedAt={scoreboardFetchedAt}/>:null}
     <div className="model-top"><div><span className="intel-kicker">{isLive?'LIVE GAME STATE':isFinal?'FINAL GAME':game?'BEFORE TIP-OFF':'MATCHUP MODEL'}</span>
-      <h3>{isFinal?'Final Result':isLive?'Live Win Estimate':'Win Probability'}</h3></div>
-      <div className="model-grade">{isLive?'LIVE · EXPERIMENTAL':isFinal?'FINAL':pred?'PREGAME · ESTIMATE':'PENDING'}</div>
+      <h3>{isFinal?'Final Result':isLive?'Live Win Probability':'Win Probability'}</h3></div>
+      <div className="model-grade">{sourcedLive?'ESPN LIVE':isLive?'LIVE · ESTIMATE':isFinal?'FINAL':pred?'PREGAME · ESTIMATE':'PENDING'}</div>
     </div>
     {isFinal?<div className="live-no-prob">The game is finished. The score above is the result; a live win forecast no longer applies.</div>:
     hasEstimate?<><div className="prob-heading"><div><span>{'FAVOURED TO WIN'}</span>
       <strong>{favoured?.name}</strong></div><b>{Math.max(prob,100-prob).toFixed(1)}<small>%</small></b></div>
       <div className="prob-vs"><span>{home?.abbreviation} {prob.toFixed(1)}%</span><span>{away?.abbreviation} {(100-prob).toFixed(1)}%</span></div>
       <div className="prob-track" role="img" aria-label={home?.name+' '+prob.toFixed(1)+' percent estimated chance; '+away?.name+' '+(100-prob).toFixed(1)+' percent'}><div style={{width:prob+'%'}}/></div>
-    </>:<p className="live-no-prob">{isLiveUnavailable?'Waiting for an available live game clock and score before displaying an in-game estimate.':pred?'Game state estimate unavailable.':'Win probability is unavailable until the recent team data can be analysed.'}</p>}
+    </>:<p className="live-no-prob">{isLiveUnavailable?'Updating the in-game probability…':pred?'Game state estimate unavailable.':'Win probability is unavailable until the recent team data can be analysed.'}</p>}
     <StartingFives rotation={rotation} loading={rotationLoading} home={home} away={away}/>
     {pred&&!isLive&&!isFinal&&!isLiveUnavailable?<div className="model-pregame-assumptions">
       <div className="model-scenarios"><span>PLAYER AVAILABILITY SCENARIO</span><div className="scenario-tabs">
@@ -175,7 +182,7 @@ function Model({report,home,away,rotation,rotationLoading,game,scoreboardFetched
     </div>:null}
   </div>;
 }
-export default function IntelligencePanel({mode,home,away,report,loading,error,onRefresh,rotation,rotationLoading,game,scoreboardFetchedAt,gameBoxscore,player,playerStats,playerLoading,playerError,propsData}) {
+export default function IntelligencePanel({mode,home,away,report,loading,error,onRefresh,rotation,rotationLoading,game,scoreboardFetchedAt,gameBoxscore,gameDetail,player,playerStats,playerLoading,playerError,propsData}) {
   const [view,setView]=useState('all');
   if(mode==='players')return <PlayerIntelligence player={player} propsData={propsData} loading={playerLoading} error={playerError}/>;
   const h=report?.teams?.home;
@@ -187,7 +194,7 @@ export default function IntelligencePanel({mode,home,away,report,loading,error,o
     mode!=='games'&&loading&&!report?<div className="intel-loading"><div className="loading-bar"/><p>Analysing recent games and current injuries for {home.name} and {away.name}…</p></div>:
     mode!=='games'&&error&&!report?<div className="intel-surface"><p className="intel-muted">{error}</p><button className="intel-refresh" onClick={onRefresh}>Retry analysis ↻</button></div>:
     <div className="intelligence-grid">
-      <Model key={home.id+'-'+away.id} report={report} home={home} away={away} rotation={rotation} rotationLoading={rotationLoading} game={mode==='games'?game:null} scoreboardFetchedAt={scoreboardFetchedAt}/>
+      <Model key={home.id+'-'+away.id} report={report} home={home} away={away} rotation={rotation} rotationLoading={rotationLoading} game={mode==='games'?game:null} scoreboardFetchedAt={scoreboardFetchedAt} gameDetail={gameDetail}/>
       {mode==='games'&&gameBoxscore}
       {!report&&(loading?<div className="intel-loading"><p>Analysing recent games, quarter patterns and injuries… The live score and game estimate above continue updating.</p></div>:
         error?<div className="intel-surface"><p className="intel-muted">{error}</p><button className="intel-refresh" onClick={onRefresh}>Retry scouting ↻</button></div>:null)}
