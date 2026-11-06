@@ -1353,3 +1353,19 @@ html[data-theme="dark"] .prop-injury-list>div span{background:#3c271d;color:#ffa
  .parlay-leg-pricing input,.parlay-leg-pricing select{height:39px}
  .prop-insight-card{padding:13px}
 }
+
+
+/* Tap-to-inspect prop game log bars */
+.prop-bar-slot{border:0;padding:0;background:transparent;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.prop-bar-slot.selected .prop-bar{outline:2px solid var(--ink);outline-offset:2px}
+.prop-bar-slot:focus-visible{outline:2px solid var(--orange);outline-offset:4px}
+.prop-selected-game{margin-top:13px;padding:10px 12px;border:1px solid var(--line);border-radius:9px;
+  background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:11px}
+.prop-selected-game strong{font-size:13px;font-weight:830;color:var(--orange);font-variant-numeric:tabular-nums}
+.prop-selected-game>span{color:var(--muted);font-weight:630}
+.prop-selected-game>span:first-child{color:var(--ink)}
+html[data-theme="dark"] .prop-bar-slot.selected .prop-bar{outline-color:#f1f1f1}
+@media(max-width:600px){
+  .prop-selected-game{font-size:10px;justify-content:start;gap:5px 11px}
+  .prop-selected-game strong{font-size:12px}
+}
