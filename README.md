@@ -105,3 +105,20 @@ Without a key, the Dime API deliberately returns a clear **503: not activated** 
 Dime accepts short messages, restricts tool parameters, limits generated output, and applies an **in-memory per-IP hourly throttle** in the server. This protects against casual overuse **but is not a hard or distributed spending limit** on serverless hosts. For public testing, configure OpenAI project budgets/alerts, monitor usage, and consider adding a shared database-backed rate limiter and authentication if more visitors join. Only public NBA data and the user's basketball question/context are passed to the model; don't submit private information.
 
 The existing matchup probabilities are historical, uncalibrated heuristics, **not** live in-game win probabilities, calibrated odds or betting advice. Injury estimates may be unavailable or stale. Dime is instructed to check its tools rather than invent statistics.
+
+## Live lineups and full-roster rotation simulator
+
+The **Live Matchup Engine** (under Live Games) and **Rotation Simulator** (under Matchup Lab) reconstruct game lineups from publicly accessible ESPN game summary data and expose a side-by-side five-man comparison, every available roster player, recent 5-game player production, injury-status flags, and recent substitution events.
+
+To simulate:
+1. Choose one of the two teams and select an on-court player under **Sub Out** and a roster player under **Sub In**. Apply and repeat for either team to build hypothetical combinations.
+2. Optionally select an attacker and a hypothetical defender currently in the *opposing* five. This is **not verified positional/defensive tracking**.
+3. Compare baseline vs simulated estimated outcomes. Reset restores the source five.
+
+The public server endpoint `GET /api/rotations?home=<teamId>&away=<teamId>[&game=<ESPNGameId>]` reports roster, projected or reconstructed five, substitution evidence and per-player sample sizes. For a single hypothetical substitution it accepts `side`, `out` and `in`, and optionally `attacker`, `defender`, `prior`; invalid substitutions and IDs are rejected server-side. All NBA data tools are **read-only**.
+
+The probabilistic scenario engine is in `lib/rotation-analytics.js`, with tests in `scripts/test-rotation-engine.mjs`. Its player role estimates use modest, arbitrary weights on recent boxscore stats, then apply a logistic adjustment to the scouting prior. During live games, a score-and-clock heuristic is also applied. **It has not been trained, calibrated, or backtested; it is not a reliable win-probability model or suitable for wagering.** Missing player data returns "not enough data" rather than a zero contribution. A recent starting five is not a confirmed upcoming lineup, and substitutions reconstructed from play-by-play can be incomplete near quarter breaks.
+
+The current ESPN feeds do **not** establish who defends whom on a possession. The defensive assignment control is strictly hypothetical and uses limited defensive proxies (steals, blocks, rebounds). Dime can call the same roster and single-scenario endpoints, but does not independently generate statistical estimates.
+
+For future production accuracy: ingest a licensed NBA play-by-play/lineup/defensive tracking provider, correct for opponent strength, rotations, pace, lineup effects and injury availability without double-counting, and fit/backtest/calibrate a game-state win model on held-out seasons.
