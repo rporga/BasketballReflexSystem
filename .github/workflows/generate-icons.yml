@@ -5,6 +5,8 @@ on:
     paths:
       - '.github/workflows/generate-icons.yml'
       - 'public/app-icon.svg'
+      - 'app/dime-avatar.js'
+      - 'scripts/check-dime-avatar.mjs'
       - 'scripts/generate-pwa-icons.mjs'
   workflow_dispatch:
 permissions:
@@ -23,6 +25,8 @@ jobs:
         run: npm install --no-save --no-audit --no-fund sharp
       - name: Generate PNG icons
         run: node scripts/generate-pwa-icons.mjs
+      - name: Validate Dime mascot JPEG
+        run: node scripts/check-dime-avatar.mjs
       - name: Commit binary icons to the repository
         run: |
           git config user.name "github-actions[bot]"
