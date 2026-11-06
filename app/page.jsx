@@ -2,6 +2,7 @@
 
 import {useEffect,useState} from 'react';
 import IntelligencePanel from './IntelligencePanel';
+import DimeChat from './DimeChat';
 
 const POLL_LIVE=5000;
 const POLL_IDLE=20000;
@@ -191,5 +192,7 @@ export default function Home() {
       {tab==='teams'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}<Matchup teams={teams} home={home} setHome={setHome} away={away} setAway={setAway} first={formA} second={formB}/></>}
       {tab==='players'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}<PlayerView teams={teams} teamId={teamId} setTeamId={setTeamId} roster={roster} playerId={playerId} setPlayerId={setPlayerId} stats={stats}/></>}
       <footer className="site-footer"><span>PICK & ROLL <b>© 2026</b></span><span>Independent basketball analytics. Data availability varies. Not affiliated with the NBA.</span></footer>
-    </div></main></div>;
+    </div></main>
+    <DimeChat context={{tab,gameId:tab==='games'?selectedGame?.id||'':'',homeId:intelHome?.id||'',awayId:intelAway?.id||'',teamId:teamId||'',playerId:tab==='players'?playerId||'':''}}/>
+  </div>;
 }
