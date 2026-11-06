@@ -159,6 +159,12 @@ function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,propsFee
           <option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
         </select></label>
         <div className="team-heading"><Logo team={selectedTeam} size={42}/><div><h3>{selectedTeam?.name||'NBA'}</h3><small>{players.length} roster players</small></div></div>
+        <label className="player-mobile-picker">CHOOSE PLAYER
+          <select value={playerId} onChange={e=>setPlayerId(e.target.value)}>
+            {players.length===0&&<option value="">Choose a player</option>}
+            {players.map(p=><option key={p.id} value={p.id}>{p.name} · {p.position}</option>)}
+          </select>
+        </label>
         {roster.loading&&<Notice>Loading team roster…</Notice>}
         {roster.error&&<Notice error retry={roster.refresh}>{roster.error}</Notice>}
         <div className="roster-list">{players.map(p=><button key={p.id} type="button"
