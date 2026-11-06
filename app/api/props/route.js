@@ -90,12 +90,19 @@ function diagnostics(games){
   season:averages(games,name,52)
  });
  const withPlus=games.filter(g=>Number.isFinite(g.stats?.PLUSMINUS));
+ const recentPlus=withPlus.slice(0,10),plus20=withPlus.slice(0,20);
+ const plusPer36=recentPlus.filter(g=>Number.isFinite(g.stats?.MIN)&&g.stats.MIN>0);
+ const per36=plusPer36.length?plusPer36.reduce((sum,g)=>sum+g.stats.PLUSMINUS,0)*36/
+   plusPer36.reduce((sum,g)=>sum+g.stats.MIN,0):null;
  return {
   sample:games.length,
   points:stat('PTS'),rebounds:stat('REB'),assists:stat('AST'),threes:stat('3PM'),minutes:stat('MIN'),
   shotAttempts:stat('FGA'),threeAttempts:stat('3PA'),turnovers:stat('TO'),steals:stat('STL'),blocks:stat('BLK'),
-  plusMinus:withPlus.length?{sample:withPlus.length,average:averages(withPlus,'PLUSMINUS',10),
-    positive:withPlus.filter(g=>g.stats.PLUSMINUS>0).length,last:withPlus.slice(0,8).map(g=>({id:g.id,date:g.date,value:g.stats.PLUSMINUS}))}:null,
+  plusMinus:withPlus.length?{sample:recentPlus.length,totalCovered:withPlus.length,
+    average:averages(recentPlus,'PLUSMINUS',10),average20:averages(plus20,'PLUSMINUS',20),
+    per36:per36==null?null:Math.round(per36*10)/10,
+    positive:recentPlus.filter(g=>g.stats.PLUSMINUS>0).length,
+    last:plus20.map(g=>({id:g.id,date:g.date,value:g.stats.PLUSMINUS}))}:null,
   shooting:shooting(games,10),
   efficiency:shooting(games,52),
   predictions:Object.fromEntries(['PTS','REB','AST','3PM','PRA','PR','PA','RA','STL','BLK','STOCKS'].map(k=>[k,forecast(games,k)])),
@@ -115,7 +122,7 @@ export async function GET(request){
   const raw=await fetchESPN(WEB+'/athletes/'+playerId+'/gamelog?season='+season+'&seasontype=2',300);
   const games=parseGamelog(raw,season);
   const teamId=games[0]?.teamId||'';
-  const sampled=games.slice(0,8);
+  const sampled=games.slice(0,20);
   const [boxScores,nextResult,injResult]=await Promise.all([
    Promise.allSettled(sampled.map(g=>gamePlusMinus(g.id,playerId))),
    nextScheduled(teamId),
