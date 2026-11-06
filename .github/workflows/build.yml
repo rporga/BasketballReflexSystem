@@ -30,3 +30,6 @@ jobs:
 
       - name: Verify live deployed intelligence API
         run: node scripts/test-live-intelligence.mjs
+
+      - name: Verify lineup and substitution feed
+        run: node scripts/check-lineup-source.mjs
