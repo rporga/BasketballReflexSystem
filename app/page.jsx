@@ -6,6 +6,7 @@ import DimeChat from './DimeChat';
 import ThemeToggle from './ThemeToggle';
 import BackToTop from './BackToTop';
 import RotationLab from './RotationLab';
+import PlayerPropHub from './PlayerPropHub';
 
 const POLL_LIVE=5000;
 const POLL_IDLE=20000;
@@ -138,28 +139,49 @@ function Matchup({teams,home,setHome,away,setAway,first,second}) {
     <div className="panel padded"><span className="eyebrow">RECENT FORM</span><h2>Last 5: Point Differential</h2><div className="diff-grid">{[[a,edgeA],[b,edgeB]].map(([t,v],i)=><div key={i}><span>{t?.abbreviation || '—'}</span><strong>{v==null?'—':(v>0?'+':'')+v.toFixed(1)}</strong></div>)}</div><p className="explainer">Last five games · ESPN</p></div>
   </>;
 }
-function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,stats}) {
+function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,propsFeed}) {
   const selectedTeam=teams.find(t=>t.id===teamId);
-  const players=roster.data?.players || [];
+  const players=roster.data?.players||[];
   useEffect(()=>{setPlayerId(old=>players.some(p=>p.id===old)?old:(players[0]?.id||''));},[roster.data?.fetchedAt,teamId]);
   const selected=players.find(p=>p.id===playerId);
-  const groups=stats.data?.groups || [];
-  const group=groups.find(g=>g.kind==='averages') || groups.find(g=>g.stats.some(s=>s.label.toUpperCase()==='PTS')) || groups[0];
-  const important=['PTS','REB','AST','MIN','FG%','3P%'];
-  const featured=important.map(label=>group?.stats.find(s=>s.label.toUpperCase()===label)).filter(Boolean);
-  return <><div className="module-line"><div><span>PLAYER EXPLORER</span><h2>Player Statistics</h2></div></div>
-    <div className="players-layout"><section className="panel padded"><h2>Select a team</h2><label className="input-label">NBA TEAM<select value={teamId} onChange={e=>setTeamId(e.target.value)}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
-      <div className="team-heading"><Logo team={selectedTeam} size={42}/><div><h3>{selectedTeam?.name || 'NBA'}</h3><small>{players.length} roster players returned</small></div></div>
-      {roster.loading && <Notice>Loading team roster…</Notice>}
-      {roster.error && <Notice error retry={roster.refresh}>{roster.error}</Notice>}
-      <div className="roster-list">{players.map(p=><button key={p.id} className={p.id===playerId?'active':''} onClick={()=>setPlayerId(p.id)}><span className="headshot">{p.headshot?<img src={p.headshot} width="42" height="42" alt=""/>:p.jersey||'•'}</span><span><strong>{p.name}</strong><small>{p.position}{p.jersey?' · #'+p.jersey:''}</small></span><b>›</b></button>)}</div></section>
-      <section className="panel padded"><div className="heading-row"><h2>Player profile</h2><span className="muted">NBA regular season</span></div>
-      {selected?<div className="profile">{selected.headshot?<img src={selected.headshot} width="84" height="84" alt=""/>:<span className="headshot">#{selected.jersey}</span>}<div><span className="eyebrow">{selectedTeam?.abbreviation} · {selected.position}</span><h2>{selected.name}</h2><small>{[selected.height,selected.age?selected.age+' years':''].filter(Boolean).join(' · ')}</small></div></div>:<Notice>Select a team and player.</Notice>}
-      {stats.loading && <Notice>Loading real player stats…</Notice>}
-      {stats.error && <Notice error retry={stats.refresh}>Player stats unavailable: {stats.error}</Notice>}
-      {selected && !stats.loading && !stats.error && !group && <Notice>No current-season statistics were returned for this player.</Notice>}
-      {group && <><div className="heading-row"><h3>{group.title}</h3><small className="muted">Season ends {stats.data?.season} · {group.kind}</small></div><div className="player-highlights">{featured.map(row=><div key={row.label}><small>{row.label}</small><strong>{row.value}</strong></div>)}</div><div className="stats-list">{group.stats.filter(row=>!featured.some(f=>f.label===row.label)).slice(0,28).map((row,i)=><div key={i}><span>{row.label}</span><b>{row.value}</b></div>)}</div></>}
-      <p className="smallprint">Season stats · ESPN</p></section></div>
+  const d=propsFeed?.data?.playerId===playerId?propsFeed.data:null,m=d?.metrics;
+  const asNumber=n=>n==null?'—':Number(n).toFixed(1);
+  const featured=m?[['PTS',m.points?.season],['REB',m.rebounds?.season],['AST',m.assists?.season],
+    ['MIN',m.minutes?.season],['3PM',m.threes?.season],['TS%',m.efficiency?.ts]]:[];
+  const extra=m?[['GAMES',m.sample],['FG ATT',m.shotAttempts?.season],['3PT ATT',m.threeAttempts?.season],
+    ['STL',m.steals?.season],['BLK',m.blocks?.season],['TO',m.turnovers?.season],
+    ['RECENT +/−',m.plusMinus?.average]]:[];
+  return <>
+    <div className="module-line"><div><span>PLAYER EXPLORER</span><h2>Player Statistics</h2></div></div>
+    <div className="players-layout">
+      <section className="panel padded"><h2>Select a team</h2>
+        <label className="input-label">NBA TEAM<select value={teamId} onChange={e=>setTeamId(e.target.value)}>
+          <option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
+        </select></label>
+        <div className="team-heading"><Logo team={selectedTeam} size={42}/><div><h3>{selectedTeam?.name||'NBA'}</h3><small>{players.length} roster players</small></div></div>
+        {roster.loading&&<Notice>Loading team roster…</Notice>}
+        {roster.error&&<Notice error retry={roster.refresh}>{roster.error}</Notice>}
+        <div className="roster-list">{players.map(p=><button key={p.id} type="button"
+          className={p.id===playerId?'active':''} aria-pressed={p.id===playerId} onClick={()=>setPlayerId(p.id)}>
+          <span className="headshot">{p.headshot?<img src={p.headshot} width="42" height="42" alt=""/>:p.jersey||'•'}</span>
+          <span><strong>{p.name}</strong><small>{p.position}{p.jersey?' · #'+p.jersey:''}</small></span><b aria-hidden="true">›</b>
+        </button>)}</div>
+      </section>
+      <section className="panel padded">
+        <div className="heading-row"><h2>Player Profile</h2><span className="muted">Current Season</span></div>
+        {selected?<div className="profile">{selected.headshot?<img src={selected.headshot} width="84" height="84" alt=""/>:<span className="headshot">#{selected.jersey}</span>}
+          <div><span className="eyebrow">{selectedTeam?.abbreviation} · {selected.position}</span><h2>{selected.name}</h2>
+            <small>{[selected.height,selected.age?selected.age+' years':''].filter(Boolean).join(' · ')}</small></div></div>:<Notice>Select a team and player.</Notice>}
+        {propsFeed?.loading&&!d&&<Notice>Loading this season's game logs…</Notice>}
+        {propsFeed?.error&&!d&&<Notice error retry={propsFeed.refresh}>{propsFeed.error}</Notice>}
+        {d&&m?.sample===0&&<Notice>No current-season game logs yet.</Notice>}
+        {featured.length>0&&<><div className="heading-row"><h3>2026–27 Season</h3><small className="muted">{m.sample} games</small></div>
+          <div className="player-highlights">{featured.map(([label,v])=><div key={label}><small>{label}</small><strong>{asNumber(v)}</strong></div>)}</div>
+          <div className="stats-list">{extra.map(([label,v])=><div key={label}><span>{label}</span><b>{asNumber(v)}</b></div>)}</div></>}
+        <p className="smallprint">ESPN · Regular-season game logs</p>
+      </section>
+    </div>
+    {selected&&<PlayerPropHub player={selected} team={selectedTeam} feed={propsFeed}/>}
   </>;
 }
 export default function Home() {
@@ -179,7 +201,7 @@ export default function Home() {
   const formA=useRemote(tab==='teams' && home?api('form',{team:home}):null,300000);
   const formB=useRemote(tab==='teams' && away?api('form',{team:away}):null,300000);
   const roster=useRemote(tab==='players' && teamId?api('roster',{team:teamId}):null,300000);
-  const stats=useRemote(tab==='players' && playerId?api('player',{id:playerId}):null,300000);
+  const propsFeed=useRemote(tab==='players'&&playerId?'/api/props?'+new URLSearchParams({player:playerId}):null,180000);
   const selectedGame=scores.data?.games?.find(x=>x.id===gameId);
   const intelHome=tab==='games'?selectedGame?.home:teams.find(x=>x.id===home);
   const intelAway=tab==='games'?selectedGame?.away:teams.find(x=>x.id===away);
@@ -213,10 +235,10 @@ export default function Home() {
         liveGame={tab==='games'?selectedGame:null}/>}
       {tab==='players'&&<>
         {teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}
-        <PlayerView teams={teams} teamId={teamId} setTeamId={setTeamId} roster={roster} playerId={playerId} setPlayerId={setPlayerId} stats={stats}/>
+        <PlayerView teams={teams} teamId={teamId} setTeamId={setTeamId} roster={roster} playerId={playerId} setPlayerId={setPlayerId} propsFeed={propsFeed}/>
         {selectedPlayer&&<div className="player-report-after-selection">
-          <IntelligencePanel key={selectedPlayer.id} mode="players" player={selectedPlayer}
-            playerStats={stats.data} playerLoading={stats.loading} playerError={stats.error}/>
+          <IntelligencePanel key={selectedPlayer.id} mode="players" player={selectedPlayer} propsData={propsFeed.data}
+            playerLoading={propsFeed.loading} playerError={propsFeed.error}/>
         </div>}
       </>}
       <footer className="site-footer"><span>PICK & ROLL <b>© 2026</b></span><span>Independent NBA analytics · Data: ESPN</span></footer>
