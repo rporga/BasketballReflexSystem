@@ -210,7 +210,8 @@ export default function Home() {
       {tab==='teams'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}
         <Matchup teams={teams} home={home} setHome={setHome} away={away} setAway={setAway} first={formA} second={formB}/></>}
       {tab!=='players'&&<RotationLab key={rotationUrl||'rotation'} mode={tab} data={rotation.data} loading={rotation.loading}
-        error={rotation.error} onRefresh={rotation.refresh} prior={intelligence.data?.prediction?.homeWin??null}/>}
+        error={rotation.error} onRefresh={rotation.refresh} prior={intelligence.data?.prediction?.homeWin??null}
+        liveGame={tab==='games'?selectedGame:null}/>}
       {tab==='players'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}<PlayerView teams={teams} teamId={teamId} setTeamId={setTeamId} roster={roster} playerId={playerId} setPlayerId={setPlayerId} stats={stats}/></>}
       <footer className="site-footer"><span>PICK & ROLL <b>© 2026</b></span><span>Independent basketball analytics. Data availability varies. Not affiliated with the NBA.</span></footer>
     </div></main>
