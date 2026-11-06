@@ -1,6 +1,9 @@
 'use client';
 
 import {useEffect,useState} from 'react';
+import Link from 'next/link';
+import {usePathname,useRouter} from 'next/navigation';
+import {parseAppRoute,gamesPath,playersPath,matchupsPath,dateInNewYork} from '../lib/deep-links.js';
 import IntelligencePanel from './IntelligencePanel';
 import DimeChat from './DimeChat';
 import ThemeToggle from './ThemeToggle';
@@ -110,11 +113,11 @@ function Boxscore({selected,feed,compact=false}) {
     <p className="smallprint">ESPN · <FeedStamp at={feed.data?.fetchedAt} kind={selected.status==='in'?'live':'score'}/></p>
   </section>;
 }
-function Games({date,setDate,score,gameId,setGameId,detail}) {
+function Games({date,setDate,score,gameId,setGameId,detail,pinnedGameId,onGameSelect}) {
   const games=score.data?.games || [];
   useEffect(()=>{
-    setGameId(prev=>games.some(g=>g.id===prev)?prev:(games.find(g=>g.status==='in') || games[0])?.id || '');
-  },[score.data?.fetchedAt,date]);
+    setGameId(prev=>pinnedGameId||(games.some(g=>g.id===prev)?prev:(games.find(g=>g.status==='in') || games[0])?.id || ''));
+  },[score.data?.fetchedAt,date,pinnedGameId]);
   const chosen=games.find(g=>g.id===gameId);
   const live=games.filter(g=>g.status==='in').length;
   return <><div className="module-line"><div><span>LIVE GAME CENTER</span><h2>NBA Games</h2></div><button className="module-refresh" onClick={score.refresh}>Refresh scores ↻</button></div>
@@ -122,7 +125,7 @@ function Games({date,setDate,score,gameId,setGameId,detail}) {
     {score.loading && <Notice>Fetching the real NBA scoreboard…</Notice>}
     {score.error && <Notice error retry={score.refresh}>Unable to fetch games: {score.error}</Notice>}
     {!score.loading && !score.error && !games.length && <Notice>No NBA games were returned for this date. Choose another day.</Notice>}
-    {!!games.length && <div className="games-grid">{games.map(g=><GameCard key={g.id} game={g} selected={g.id===gameId} click={()=>{setGameId(g.id);trackEvent('game_selected',{game_id:g.id});}}/>)}</div>}
+    {!!games.length && <div className="games-grid">{games.map(g=><GameCard key={g.id} game={g} selected={g.id===gameId} click={()=>onGameSelect(g.id)}/>)}</div>}
   </>;
 }
 function Form({data,loading,error,retry}) {
@@ -142,10 +145,13 @@ function Matchup({teams,home,setHome,away,setAway,first,second}) {
     <div className="panel padded"><span className="eyebrow">RECENT FORM</span><h2>Last 5: Point Differential</h2><div className="diff-grid">{[[a,edgeA],[b,edgeB]].map(([t,v],i)=><div key={i}><span>{t?.abbreviation || '—'}</span><strong>{v==null?'—':(v>0?'+':'')+v.toFixed(1)}</strong></div>)}</div><p className="explainer">Last five games · ESPN</p></div>
   </>;
 }
-function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,propsFeed}) {
+function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,propsFeed,onTeamSelect,onPlayerSelect,pinnedPlayerId}) {
   const selectedTeam=teams.find(t=>t.id===teamId);
   const players=roster.data?.players||[];
-  useEffect(()=>{setPlayerId(old=>players.some(p=>p.id===old)?old:(players[0]?.id||''));},[roster.data?.fetchedAt,teamId]);
+  useEffect(()=>{
+    if(!roster.data||String(roster.data?.team?.id)!==String(teamId))return;
+    setPlayerId(old=>players.some(p=>p.id===old)?old:(pinnedPlayerId||players[0]?.id||''));
+  },[roster.data?.fetchedAt,teamId,pinnedPlayerId]);
   const selected=players.find(p=>p.id===playerId);
   const d=propsFeed?.data?.playerId===playerId?propsFeed.data:null,m=d?.metrics;
   const asNumber=n=>n==null?'—':Number(n).toFixed(1);
@@ -158,12 +164,12 @@ function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,propsFee
     <div className="module-line"><div><span>PLAYER EXPLORER</span><h2>Player Statistics</h2></div></div>
     <div className="players-layout">
       <section className="panel padded"><h2>Select a team</h2>
-        <label className="input-label">NBA TEAM<select value={teamId} onChange={e=>{setTeamId(e.target.value);trackEvent('matchup_team_selected',{side:'player_team',team_id:e.target.value});}}>
+        <label className="input-label">NBA TEAM<select value={teamId} onChange={e=>{onTeamSelect(e.target.value);trackEvent('matchup_team_selected',{side:'player_team',team_id:e.target.value});}}>
           <option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
         </select></label>
         <div className="team-heading"><Logo team={selectedTeam} size={42}/><div><h3>{selectedTeam?.name||'NBA'}</h3><small>{players.length} roster players</small></div></div>
         <label className="player-mobile-picker">CHOOSE PLAYER
-          <select value={playerId} onChange={e=>{setPlayerId(e.target.value);trackEvent('player_selected',{player_id:e.target.value,team_id:teamId});}}>
+          <select value={playerId} onChange={e=>{onPlayerSelect(e.target.value);trackEvent('player_selected',{player_id:e.target.value,team_id:teamId});}}>
             {players.length===0&&<option value="">Choose a player</option>}
             {players.map(p=><option key={p.id} value={p.id}>{p.name} · {p.position}</option>)}
           </select>
@@ -171,7 +177,7 @@ function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,propsFee
         {roster.loading&&<Notice>Loading team roster…</Notice>}
         {roster.error&&<Notice error retry={roster.refresh}>{roster.error}</Notice>}
         <div className="roster-list">{players.map(p=><button key={p.id} type="button"
-          className={p.id===playerId?'active':''} aria-pressed={p.id===playerId} onClick={()=>{setPlayerId(p.id);trackEvent('player_selected',{player_id:p.id,team_id:teamId});}}>
+          className={p.id===playerId?'active':''} aria-pressed={p.id===playerId} onClick={()=>{onPlayerSelect(p.id);trackEvent('player_selected',{player_id:p.id,team_id:teamId});}}>
           <span className="headshot">{p.headshot?<img src={p.headshot} width="42" height="42" alt=""/>:p.jersey||'•'}</span>
           <span><strong>{p.name}</strong><small>{p.position}{p.jersey?' · #'+p.jersey:''}</small></span><b aria-hidden="true">›</b>
         </button>)}</div>
@@ -194,13 +200,40 @@ function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,propsFee
   </>;
 }
 export default function Home() {
-  const [tab,setTab]=useState('games');
+  const pathname=usePathname()||'/';
+  const router=useRouter();
+  const route=parseAppRoute(pathname);
+  const tab=route.tab;
   const [date,setDate]=useState(dateET);
-  const [gameId,setGameId]=useState('');
+  const [gameId,setGameId]=useState(route.gameId||'');
   const [home,setHome]=useState('');
   const [away,setAway]=useState('');
   const [teamId,setTeamId]=useState('');
-  const [playerId,setPlayerId]=useState('');
+  const [playerId,setPlayerId]=useState(route.playerId||'');
+  useEffect(()=>{
+    if(route.gameId)setGameId(route.gameId);
+    if(route.playerId)setPlayerId(route.playerId);
+  },[pathname]);
+  const onGameSelect=id=>{
+    setGameId(id);trackEvent('game_selected',{game_id:id});
+    router.push(gamesPath(id),{scroll:false});
+  };
+  const onTeamSelect=id=>{
+    setTeamId(id);setPlayerId('');
+    router.push('/players',{scroll:false});
+  };
+  const onPlayerSelect=id=>{
+    setPlayerId(id);
+    router.push(playersPath(id),{scroll:false});
+  };
+  const onBrowseDate=next=>{
+    setDate(next);
+    if(route.gameId){setGameId('');router.push('/games',{scroll:false});}
+  };
+  const onMatchupSelect=(homeId,awayId)=>{
+    const h=teams.find(t=>t.id===homeId),a=teams.find(t=>t.id===awayId);
+    router.push(matchupsPath(h?.abbreviation,a?.abbreviation),{scroll:false});
+  };
   useEffect(()=>{
     const emit=()=>trackEvent('section_view',{section:tab});
     emit();
@@ -209,14 +242,35 @@ export default function Home() {
   },[tab]);
   const teamsFeed=useRemote(api('teams'),300000);
   const teams=teamsFeed.data?.teams || [];
-  useEffect(()=>{if(!teams.length)return;const a=teams.find(x=>x.abbreviation==='BOS')?.id || teams[0].id;const b=teams.find(x=>x.abbreviation==='LAL')?.id || teams.find(x=>x.id!==a)?.id;setHome(x=>x||a);setAway(x=>x||b);setTeamId(x=>x||a);},[teamsFeed.data?.fetchedAt]);
+  useEffect(()=>{
+    if(!teams.length)return;
+    const a=teams.find(x=>x.abbreviation==='BOS')?.id||teams[0].id;
+    const b=teams.find(x=>x.abbreviation==='LAL')?.id||teams.find(x=>x.id!==a)?.id;
+    setHome(x=>x||a);setAway(x=>x||b);setTeamId(x=>x||a);
+  },[teamsFeed.data?.fetchedAt]);
+  useEffect(()=>{
+    if(tab!=='teams'||!route.homeAbbr||!route.awayAbbr||!teams.length)return;
+    const h=teams.find(t=>t.abbreviation===route.homeAbbr),a=teams.find(t=>t.abbreviation===route.awayAbbr);
+    if(h&&a&&h.id!==a.id){setHome(h.id);setAway(a.id);}
+  },[pathname,teamsFeed.data?.fetchedAt]);
   const scores=useRemote(api('scoreboard',{date}),POLL_IDLE,POLL_LIVE);
   const selectedLiveGame=scores.data?.games?.find(x=>x.id===gameId);
-  const detail=useRemote(tab==='games' && gameId?api('game',{id:gameId}):null,selectedLiveGame?.status==='in'?POLL_LIVE:POLL_IDLE);
+  const detail=useRemote(tab==='games'&&gameId?api('game',{id:gameId}):null,selectedLiveGame?.status==='in'?POLL_LIVE:POLL_IDLE);
+  useEffect(()=>{
+    if(tab!=='games'||!route.gameId||!detail.data?.start)return;
+    const correct=dateInNewYork(detail.data.start);
+    if(correct&&correct!==date)setDate(correct);
+  },[pathname,detail.data?.start,date]);
   const formA=useRemote(tab==='teams' && home?api('form',{team:home}):null,300000);
   const formB=useRemote(tab==='teams' && away?api('form',{team:away}):null,300000);
   const roster=useRemote(tab==='players' && teamId?api('roster',{team:teamId}):null,300000);
   const propsFeed=useRemote(tab==='players'&&playerId?'/api/props?'+new URLSearchParams({player:playerId}):null,180000);
+  useEffect(()=>{
+    if(tab!=='players'||!route.playerId||!teams.length)return;
+    const data=propsFeed.data;
+    if(String(data?.playerId)===route.playerId&&data?.teamId&&
+      teams.some(t=>t.id===data.teamId)&&teamId!==data.teamId)setTeamId(data.teamId);
+  },[pathname,teamsFeed.data?.fetchedAt,propsFeed.data?.playerId,propsFeed.data?.teamId,teamId]);
   const selectedGame=scores.data?.games?.find(x=>x.id===gameId);
   const intelHome=tab==='games'?selectedGame?.home:teams.find(x=>x.id===home);
   const intelAway=tab==='games'?selectedGame?.away:teams.find(x=>x.id===away);
@@ -230,8 +284,8 @@ export default function Home() {
   return <div className="site-shell">
     <header className="site-header">
       <div className="site-header-inner">
-        <a href="/" className="wordmark" aria-label="Pick and Roll, go to live games" onClick={e=>{e.preventDefault();setTab('games')}}><img src="/pick-roll-logo.webp" alt="Pick & Roll" width="320" height="127" /></a>
-        <nav className="topnav" aria-label="Main navigation">{pages.map(p=><button key={p.id} className={'nav-item '+(tab===p.id?'active':'')} onClick={()=>setTab(p.id)} aria-current={tab===p.id?'page':undefined}>{p.label}</button>)}</nav>
+        <Link href="/games" className="wordmark" aria-label="Pick and Roll, go to live games"><img src="/pick-roll-logo.webp" alt="Pick & Roll" width="320" height="127" /></Link>
+        <nav className="topnav" aria-label="Main navigation">{pages.map(p=><Link key={p.id} href={p.id==='games'?'/games':p.id==='teams'?'/matchups':'/players'} className={'nav-item '+(tab===p.id?'active':'')} aria-current={tab===p.id?'page':undefined}>{p.label}</Link>)}</nav>
         <div className="header-actions"><ThemeToggle/>{live?<span className="live-pulse">{live} LIVE NOW</span>:null}</div>
       </div>
     </header>
@@ -241,8 +295,8 @@ export default function Home() {
         <div><h1>Pick &amp; Roll</h1><p className="brand-intro-tagline">Understand the game. Anticipate what happens next.</p></div>
         <p className="brand-intro-description">Live NBA intelligence that connects player performance, matchups, rotations and statistical projections in one place.</p>
       </div>}
-      {tab==='teams'&&<div className="matchup-selector"><div className="module-line"><div><span>BUILD YOUR MATCHUP</span><h2>Select Teams</h2></div></div>    <section className="panel padded"><div className="heading-row"><h2>Matchup</h2><small className="muted">Most recent 10 completed regular-season games</small></div><div className="team-pickers"><label>HOME TEAM<select value={home} onChange={e=>{setHome(e.target.value);if(e.target.value===away)setAway(home);trackEvent('matchup_team_selected',{side:'home',team_id:e.target.value});}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><span>VS</span><label>AWAY TEAM<select value={away} onChange={e=>{setAway(e.target.value);if(e.target.value===home)setHome(away);trackEvent('matchup_team_selected',{side:'away',team_id:e.target.value});}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label></div></section></div>}
-      {tab==='games'&&<Games date={date} setDate={setDate} score={scores} gameId={gameId} setGameId={setGameId}/>}
+      {tab==='teams'&&<div className="matchup-selector"><div className="module-line"><div><span>BUILD YOUR MATCHUP</span><h2>Select Teams</h2></div></div>    <section className="panel padded"><div className="heading-row"><h2>Matchup</h2><small className="muted">Most recent 10 completed regular-season games</small></div><div className="team-pickers"><label>HOME TEAM<select value={home} onChange={e=>{const h=e.target.value,a=h===away?home:away;setHome(h);setAway(a);trackEvent('matchup_team_selected',{side:'home',team_id:h});onMatchupSelect(h,a);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><span>VS</span><label>AWAY TEAM<select value={away} onChange={e=>{const a=e.target.value,h=a===home?away:home;setAway(a);setHome(h);trackEvent('matchup_team_selected',{side:'away',team_id:a});onMatchupSelect(h,a);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label></div></section></div>}
+      {tab==='games'&&<Games date={date} setDate={onBrowseDate} score={scores} gameId={gameId} setGameId={setGameId} pinnedGameId={route.gameId} onGameSelect={onGameSelect}/>}
       {tab!=='players'&&<IntelligencePanel mode={tab} home={intelHome} away={intelAway} report={intelligence.data} loading={intelligence.loading} error={intelligence.error}
         onRefresh={intelligence.refresh} rotation={rotation.data} rotationLoading={rotation.loading}
         game={tab==='games'?selectedGame:null} gameDetail={tab==='games'?detail.data:null} scoreboardFetchedAt={scores.data?.fetchedAt}
@@ -254,17 +308,17 @@ export default function Home() {
         liveGame={tab==='games'?selectedGame:null} liveWin={tab==='games'?detail.data?.winProbability:null}/>}
       {tab==='players'&&<>
         {teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}
-        <PlayerView teams={teams} teamId={teamId} setTeamId={setTeamId} roster={roster} playerId={playerId} setPlayerId={setPlayerId} propsFeed={propsFeed}/>
+        <PlayerView teams={teams} teamId={teamId} setTeamId={setTeamId} roster={roster} playerId={playerId} setPlayerId={setPlayerId} propsFeed={propsFeed} pinnedPlayerId={route.playerId} onTeamSelect={onTeamSelect} onPlayerSelect={onPlayerSelect}/>
       </>}
       <footer className="site-footer"><span>PICK & ROLL <b>© 2026</b></span><span>Independent NBA analytics · ESPN <a href="/about">About &amp; model accuracy</a><AnalyticsPreferencesButton/></span></footer>
     </div></main>
     <nav className="mobile-bottom-nav" aria-label="Mobile primary navigation">
-      {pages.map(p=><button type="button" key={p.id} className={'mobile-tab '+(tab===p.id?'active':'')}
+      {pages.map(p=><Link key={p.id} href={p.id==='games'?'/games':p.id==='teams'?'/matchups':'/players'} className={'mobile-tab '+(tab===p.id?'active':'')}
         aria-current={tab===p.id?'page':undefined}
-        onClick={()=>{setTab(p.id);window.scrollTo({top:0,behavior:'instant'});}}>
+        >
         <span className="mobile-tab-symbol"><TabIcon id={p.id}/></span>
         <span className="mobile-tab-label">{p.id==='games'?'Games':p.id==='teams'?'Matchups':'Players'}</span>
-      </button>)}
+      </Link>)}
     </nav>
     <BackToTop/>
     <DimeChat context={{tab,gameId:tab==='games'?selectedGame?.id||'':'',homeId:intelHome?.id||'',awayId:intelAway?.id||'',teamId:teamId||'',playerId:tab==='players'?playerId||'':''}}/>
