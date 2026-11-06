@@ -113,13 +113,8 @@ export default function RotationLab({mode,data,loading,error,onRefresh,prior}){
         </div>
       </div>
       <div className="rotation-forecast">
-        <div className="rotation-forecast-top"><span className="intel-kicker">MATCHUP ESTIMATE</span><span className="rotation-badge">UNCALIBRATED</span></div>
-        {evaluation?.available?<><div className="rotation-forecast-values">
-          <div><small>{home.name}</small><strong>{num(evaluation.scenarioHome)}%</strong></div>
-          <div><small>{away.name}</small><strong>{num(evaluation.scenarioAway)}%</strong></div>
-        </div>
-        <div className="rotation-forecast-bar"><div style={{width:evaluation.scenarioHome+'%'}}/></div>
-        <div className="rotation-stat-grid">
+        <div className="rotation-forecast-top"><span className="intel-kicker">EFFECT OF YOUR CHANGES</span><span className="rotation-badge">UNCALIBRATED</span></div>
+        {evaluation?.available?(changed?<><div className="rotation-stat-grid">
           <div><span>BASELINE HOME</span><strong>{num(evaluation.baselineHome)}%</strong></div>
           <div><span>SIMULATED HOME</span><strong>{num(evaluation.scenarioHome)}%</strong></div>
           <div><span>SCENARIO SHIFT</span><strong>{delta(evaluation.changeHome)}{num(evaluation.changeHome,2)} pp</strong></div>
@@ -130,7 +125,8 @@ export default function RotationLab({mode,data,loading,error,onRefresh,prior}){
         <p className="rotation-usage">Player samples: {evaluation.samples.home}/5 and {evaluation.samples.away}/5.
         {evaluation.baselineProvided?' Starting odds use the existing historical scouting model.':' No historical prior: 50/50 is used as a neutral starting assumption.'}
         {evaluation.mode==='LIVE EXPLORATORY'?' The displayed baseline also considers the current score and time remaining.':''}</p>
-        </>:<p className="rotation-usage">{evaluation?.reason||'Not enough usable player data for a lineup estimate.'}</p>}
+        </>:<p className="rotation-usage">The baseline matchup is shown above in the Scouting Report. Make a substitution or select a defensive assignment to compare the hypothetical outcome here.</p>)
+          :<p className="rotation-usage">{evaluation?.reason||'Not enough usable player data for a lineup estimate.'}</p>}
         <p className="rotation-disclaimer">Exploratory only, not validated betting odds. Uses short-term player production proxies, not measured lineup chemistry, actual defender assignments, or a backtested possession model. Missing player statistics are unknown, not zero.</p>
       </div>
     </div>
