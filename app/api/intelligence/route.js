@@ -185,13 +185,10 @@ function insights(home,away,mh,ma) {
   if(!mh||!ma)return [];
   const sample=Math.min(mh.sample,ma.sample);
   const teamSamples=home+' '+mh.sample+' G · '+away+' '+ma.sample+' G';
-  const severity=sample<5?'insufficient':sample<10?'small':'normal';
   const observation=(message,counts=teamSamples,n=sample)=>({
     text:message,sample:n,sampleLabel:counts,
     sampleQuality:n<5?'insufficient':n<10?'small':'normal'
   });
-  const q3=mh.quarters[2].margin-ma.quarters[2].margin;
-  const q4=mh.quarters[3].margin-ma.quarters[3].margin;
   return [
     observation('Q3 scoring margins: '+home+' '+(mh.quarters[2].margin>=0?'+':'')+mh.quarters[2].margin.toFixed(1)+
       ' points; '+away+' '+(ma.quarters[2].margin>=0?'+':'')+ma.quarters[2].margin.toFixed(1)+' points.'),
@@ -211,20 +208,27 @@ export async function GET(request) {
   const home=q.get('home') || '',away=q.get('away') || '';
   if(!teamIdValid(home)||!teamIdValid(away)||home===away)return sendError('Select two different valid ESPN team IDs.',400);
   try {
-    const [gamesH,gamesA,report]=await Promise.all([recentGames(home),recentGames(away),get(ESPN+'/injuries',120)]);
+    const [gamesH,gamesA,report,registry]=await Promise.all([
+      recentGames(home),recentGames(away),get(ESPN+'/injuries',120),
+      get(ESPN+'/teams?limit=50',3600).catch(()=>null)
+    ]);
     const [hi,ai]=await Promise.all([injuryReport(report,home,gamesH),injuryReport(report,away,gamesA)]);
     const h=stat(gamesH),a=stat(gamesA);
     const prediction=probability(h,a,hi,ai);
+    const canonicalTeams=(registry?.sports?.[0]?.leagues?.[0]?.teams||[]).map(x=>x.team||x);
+    const identity=id=>canonicalTeams.find(t=>String(t.id)===id);
     const displayName=id=>{
+      const official=identity(id);
+      if(official?.displayName)return text(official.displayName);
       const injuryTeam=(report.injuries||[]).find(x=>String(x.id||x.team?.id)===id);
       return text(injuryTeam?.displayName||injuryTeam?.team?.displayName);
     };
-    const nameH=displayName(home)||gamesH[0]?.teamName||'Home team';
-    const nameA=displayName(away)||gamesA[0]?.teamName||'Away team';
+    const nameH=displayName(home)||'Team '+home;
+    const nameA=displayName(away)||'Team '+away;
     const reportDate=text(report.timestamp || report.date) || null;
     return NextResponse.json({
-      teams:{home:{id:home,name:nameH,metrics:h,findings:observations(nameH,h),games:gamesH},
-             away:{id:away,name:nameA,metrics:a,findings:observations(nameA,a),games:gamesA}},
+      teams:{home:{id:home,name:nameH,abbreviation:identity(home)?.abbreviation||'',metrics:h,findings:observations(nameH,h),games:gamesH},
+             away:{id:away,name:nameA,abbreviation:identity(away)?.abbreviation||'',metrics:a,findings:observations(nameA,a),games:gamesA}},
       injuryReports:{home:hi,away:ai,asOf:reportDate},
       prediction,
       insights:insights(nameH,nameA,h,a),
