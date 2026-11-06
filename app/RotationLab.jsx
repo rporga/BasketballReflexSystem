@@ -4,29 +4,16 @@ import {evaluateRotation} from '../lib/rotation-analytics.js';
 
 const num=(v,d=1)=>v==null?'—':Number(v).toFixed(d);
 const delta=v=>v>0?'+':'';
-function Person({p,changed}){
-  const f=p?.profile||{};
-  return <div className={'rotation-person '+(changed?'rotation-changed':'')}>
-    <div className="rotation-photo">{p?.headshot?<img src={p.headshot} alt="" loading="lazy"/>:<span>{p?.jersey||'•'}</span>}</div>
-    <div className="rotation-pname"><strong>{p?.name||'Unknown'}</strong>
-      <span>{p?.position||'—'} · {f.sample?f.sample+' games · '+num(f.minutes)+' MIN':'No recent game sample'}{p?.injury?.status?' · '+p.injury.status:''}</span>
-    </div>
-    <div className="rotation-pstat"><b>{num(f.pts)}</b><small>PTS</small></div>
-    <div className="rotation-pstat"><b>{num(f.ast)}</b><small>AST</small></div>
-  </div>;
-}
 function Squad({team,ids}){
-  const starters=new Set(team.onCourt.map(p=>p.id)),byId=new Map(team.players.map(p=>[p.id,p]));
-  return <div className="rotation-squad">
-    <div className="rotation-squad-head"><div><span className="intel-kicker">FIVE ON FLOOR / SIMULATED</span><h3>{team.name||'Team'}</h3></div>
-      <span className="rotation-source">{team.source}</span></div>
-    {ids.map(id=><Person key={id} p={byId.get(id)} changed={!starters.has(id)}/>)}
-    <details className="rotation-roster"><summary>Full Roster <span>{team.players.length} Players</span></summary>
-      <div>{team.players.map(p=><div className="rotation-roster-row" key={p.id}>
-        <span>{p.name}{p.injury?.status?' · '+p.injury.status:''}</span>
-        <b>{p.profile.sample?num(p.profile.pts)+' PPG / '+num(p.profile.minutes)+' MPG':'Recent stats unavailable'}</b>
-      </div>)}</div></details>
-  </div>;
+  const active=new Set(ids);
+  return <details className="rotation-squad rotation-roster-panel">
+    <summary><span><small>FULL TEAM ROSTER</small><strong>{team.name||'Team'}</strong></span>
+      <span>{team.players.length} players <b aria-hidden="true">+</b></span></summary>
+    <div className="rotation-roster-list">{team.players.map(p=><div className="rotation-roster-row" key={p.id}>
+      <div><strong>{p.name}</strong><small>{p.position||'—'} · {active.has(p.id)?'IN SELECTED FIVE':'BENCH / ROSTER'}{p.injury?.status?' · '+p.injury.status:''}</small></div>
+      <b>{p.profile.sample?num(p.profile.pts)+' PPG · '+num(p.profile.minutes)+' MIN':'Recent stats unavailable'}</b>
+    </div>)}</div>
+  </details>;
 }
 export default function RotationLab({mode,data,loading,error,onRefresh,prior}){
   const [homeFive,setHomeFive]=useState([]);
@@ -71,15 +58,23 @@ export default function RotationLab({mode,data,loading,error,onRefresh,prior}){
   }
   const reset=()=>{setHomeFive([]);setAwayFive([]);setOutId('');setInId('');setAttackerId('');setDefenderId('');setHistory([]);};
   const changed=history.length||attackerId||defenderId;
-  if(!home||!away)return <section className="rotation-section">
-    <div className="rotation-heading"><div><span className="intel-kicker">LINEUP INTELLIGENCE</span><h2>Rotation Simulator</h2></div></div>
-    <div className="intel-surface"><p className="intel-muted">{loading?'Loading starters, team rosters and recent boxscores…':error||'Select a game or two teams to explore rotations.'}</p>
+  if(!home||!away)return <section className="rotation-section rotation-advanced">
+    <div className="rotation-heading"><div><span className="intel-kicker">OPTIONAL DEEP DIVE</span><h2>Rotations & Full Rosters</h2></div></div>
+    <div className="intel-surface"><p className="intel-muted">{loading?'Loading rosters and recent boxscores…':error||'Choose a game or two teams to explore rotations.'}</p>
       {error&&<button className="intel-refresh" onClick={onRefresh}>Retry ↻</button>}</div>
   </section>;
-  return <section className="rotation-section" aria-label="Full roster rotations and matchup scenarios">
-    <div className="rotation-heading"><div><span className="intel-kicker">FULL ROSTER INTELLIGENCE</span>
-      <h2>{mode==='games'?'Live Matchup Engine':'Rotation Simulator'}</h2></div>
-      <button className="intel-refresh" onClick={onRefresh}>Update lineups ↻</button></div>
+  return <section className="rotation-section rotation-advanced" aria-label="Advanced roster and rotation analysis">
+    <details className="rotation-explorer">
+      <summary className="rotation-explorer-trigger">
+        <span className="rotation-explorer-icon" aria-hidden="true">↔</span>
+        <span className="rotation-explorer-title"><small>OPTIONAL DEEP DIVE · FULL ROSTERS</small>
+          <strong>Explore Rotations & Substitutions</strong>
+          <span>Test bench changes, defensive matchups and lineup effects after reviewing the scouting report.</span></span>
+        <span className="rotation-explorer-action" aria-hidden="true">Explore <b>+</b></span>
+      </summary>
+      <div className="rotation-explorer-body">
+    <div className="rotation-heading rotation-explorer-heading"><div><span className="intel-kicker">SCOUTING / LINEUP DEEP DIVE</span><h2>Rotation Analysis</h2></div>
+      <button className="intel-refresh" onClick={onRefresh}>Update lineup ↻</button></div>
     <div className="rotation-context">
       <span className="rotation-badge">{data.game?.status==='in'?'LIVE · EXPERIMENTAL':data.game?.status==='post'?'FINAL GAME DATA':'RECENT STARTING FIVES'}</span>
       <span>Recent form: {home.gameSample} / {away.gameSample} games</span>
@@ -139,5 +134,7 @@ export default function RotationLab({mode,data,loading,error,onRefresh,prior}){
         <p className="rotation-disclaimer">Exploratory only, not validated betting odds. Uses short-term player production proxies, not measured lineup chemistry, actual defender assignments, or a backtested possession model. Missing player statistics are unknown, not zero.</p>
       </div>
     </div>
+      </div>
+    </details>
   </section>;
 }
