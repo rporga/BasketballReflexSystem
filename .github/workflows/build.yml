@@ -57,3 +57,6 @@ jobs:
 
       - name: Measure historical player prop forecast errors
         run: node scripts/backtest-prop-model.mjs
+
+      - name: Validate critical NBA accuracy fixes
+        run: node scripts/test-accuracy-regressions.mjs
