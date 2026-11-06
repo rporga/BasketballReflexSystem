@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {
  GA_MEASUREMENT_ID,ANALYTICS_CHOICE_KEY,getAnalyticsChoice,setAnalyticsChoice,
- startAnalytics,stopAnalytics,trackEvent
+ startAnalytics,stopAnalytics,trackEvent,trackPageView
 } from '../lib/analytics.js';
 
 assert.equal(GA_MEASUREMENT_ID,'G-88Q3PDQJF7');
@@ -13,7 +13,7 @@ globalThis.window={
   getItem:key=>local.get(key)??null,
   setItem:(key,v)=>local.set(key,String(v))
  },
- location:{hostname:'localhost'},
+ location:{hostname:'localhost',origin:'https://basketballreflexsystem.vercel.app',pathname:'/games/401909934'},
  dispatchEvent:event=>events.push(event.type)
 };
 globalThis.document={
@@ -24,6 +24,7 @@ globalThis.document={
 assert.equal(getAnalyticsChoice(),null);
 assert.equal(startAnalytics(),false,'No tracking before explicit consent');
 assert.equal(trackEvent('section_view',{section:'games'}),false);
+assert.equal(trackPageView('/games'),false);
 assert.equal(scripts.length,0,'Google tag must not load before consent');
 
 assert.equal(setAnalyticsChoice('accepted'),true);
@@ -40,7 +41,19 @@ assert.equal(consentDefault[2].analytics_storage,'denied');
 assert.equal(consentDefault[2].ad_storage,'denied');
 assert.equal(consentUpdate[2].analytics_storage,'granted');
 assert.equal(consentUpdate[2].ad_user_data,'denied');
-assert.ok(window.dataLayer.some(x=>x[0]==='config'&&x[1]===GA_MEASUREMENT_ID));
+const config=window.dataLayer.find(x=>x[0]==='config'&&x[1]===GA_MEASUREMENT_ID);
+assert.ok(config);
+assert.equal(config[2].send_page_view,false,'Explicit pageviews only, no duplicate auto event');
+assert.equal(trackPageView('/games/401909934'),true);
+assert.equal(trackPageView('/games/401909934'),false,'Same route must not duplicate');
+assert.equal(trackPageView('/players/3945274'),true);
+const lastPageView=window.dataLayer.at(-1);
+assert.equal(lastPageView[0],'event');
+assert.equal(lastPageView[1],'page_view');
+assert.equal(lastPageView[2].page_path,'/players/3945274');
+assert.equal(lastPageView[2].page_location,'https://basketballreflexsystem.vercel.app/players/3945274');
+assert.equal(trackPageView('/players/3945274?prop=PTS'),false,'Query changes do not create pageviews');
+assert.equal(trackPageView('/matchups/bos-vs-lal'),true);
 assert.ok(events.includes('pickroll:analytics-ready'));
 
 assert.equal(trackEvent('dime_question_sent',{context:'players',question:'Personal text'}),true);
@@ -56,11 +69,13 @@ assert.equal(setAnalyticsChoice('rejected'),true);
 stopAnalytics();
 assert.equal(getAnalyticsChoice(),'rejected');
 assert.equal(trackEvent('section_view',{section:'games'}),false);
+assert.equal(trackPageView('/games'),false);
 assert.equal(startAnalytics(),false);
 assert.equal(window.dataLayer.at(-1)[2].analytics_storage,'denied');
 
 const src=path=>readFileSync(new URL('../'+path,import.meta.url),'utf8');
 assert.ok(src('app/layout.jsx').includes('<AnalyticsConsent/>'));
+assert.ok(src('app/layout.jsx').includes('<AnalyticsPageviews/>'));
 assert.ok(src('app/page.jsx').includes('<AnalyticsPreferencesButton/>'));
 assert.ok(src('app/DimeChat.jsx').includes("trackEvent('dime_question_sent'"));
 assert.ok(src('app/PlayerPropHub.jsx').includes("trackEvent('parlay_leg_added'"));
