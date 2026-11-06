@@ -50,7 +50,7 @@ async function teams() {
     .sort((a,b)=>a.name.localeCompare(b.name))};
 }
 async function scoreboard(date) {
-  const data=await request(ROOT+'/scoreboard?dates='+date+'&limit=100',15);
+  const data=await request(ROOT+'/scoreboard?dates='+date+'&limit=100',5);
   const games=(data.events || []).map(e => {
     const c=e.competitions?.[0] || {};
     const sides=c.competitors || [];
@@ -67,7 +67,7 @@ async function scoreboard(date) {
   return {date,games};
 }
 async function game(id) {
-  const data=await request(ROOT+'/summary?event='+id,15);
+  const data=await request(ROOT+'/summary?event='+id,5);
   return {
     id,
     players:(data.boxscore?.players || []).map(group => {
@@ -149,12 +149,12 @@ export async function GET(request) {
     if(view==='scoreboard') {
       const date=q.get('date') || currentDate();
       if(!validDate(date)) return fail('Invalid date. Expected YYYYMMDD.',400);
-      data=await scoreboard(date); ttl=15;
+      data=await scoreboard(date); ttl=5;
     } else if(view==='teams') { data=await teams(); ttl=3600; }
     else if(view==='game') {
       const id=q.get('id') || '';
       if(!/^\d{8,12}$/.test(id)) return fail('Invalid game ID.',400);
-      data=await game(id); ttl=15;
+      data=await game(id); ttl=5;
     } else if(view==='roster' || view==='form') {
       const id=q.get('team') || '';
       if(!/^[a-zA-Z0-9]{1,8}$/.test(id)) return fail('Invalid team ID.',400);
@@ -166,7 +166,7 @@ export async function GET(request) {
       data=await player(id,season); ttl=900;
     } else return fail('Unknown view.',400);
     return NextResponse.json({...data,fetchedAt:new Date().toISOString(),provider:'ESPN unofficial public feeds'},
-      {headers:{'Cache-Control':'public, s-maxage='+ttl+', stale-while-revalidate='+Math.min(60,ttl)}});
+      {headers:{'Cache-Control':'public, s-maxage='+ttl+', stale-while-revalidate='+Math.min(5,ttl)}});
   } catch(e) {
     console.error('NBA provider request failed for',view,e?.message);
     return fail('Sports data is temporarily unavailable. Retry shortly; demonstration numbers will not be substituted.',502);
