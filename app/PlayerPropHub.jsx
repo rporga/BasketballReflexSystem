@@ -29,12 +29,13 @@ function PropBars({games,keyName,line,side}){
        <span>{line}</span>
      </div>}
      {recent.map(g=>{
-       const v=g.stats[keyName],hit=line!=null&&(side==='over'?v>Number(line):v<Number(line));
+       const v=g.stats[keyName],push=line!=null&&v===Number(line);
+       const hit=line!=null&&!push&&(side==='over'?v>Number(line):v<Number(line));
        return <button type="button" className={'prop-bar-slot '+(selected?.id===g.id?'selected':'')} key={g.id}
          onClick={()=>setSelectedId(g.id)} aria-pressed={selected?.id===g.id}
          title={niceDate(g.date)+' vs '+g.opponent+': '+v}
          aria-label={niceDate(g.date)+' against '+g.opponent+', '+v+' '+(PROP_DEFS[keyName]?.label||keyName)}>
-         <span className={'prop-bar '+(hit?'hit':'miss')} style={{height:Math.max(4,100*v/max)+'%'}}/>
+         <span className={'prop-bar '+(push?'push':hit?'hit':'miss')} style={{height:Math.max(4,100*v/max)+'%'}}/>
          <small>{niceDate(g.date).split(' ')[0]}</small>
        </button>;
      })}
@@ -43,7 +44,7 @@ function PropBars({games,keyName,line,side}){
      <strong>{selected.stats[keyName]} {keyName}</strong>
      <span>{selected.stats.MIN==null?'':'· '+selected.stats.MIN+' MIN'}{selected.stats.PLUSMINUS==null?'':' · '+signed(selected.stats.PLUSMINUS)+' +/-'}</span>
    </div>}
-   <div className="prop-bars-key"><span><i className="good"/>Hit</span><span><i className="other"/>Miss</span>
+   <div className="prop-bars-key"><span><i className="good"/>Hit</span><span><i className="other"/>Miss</span><span><i className="push"/>Push</span>
      <span>Source: ESPN game logs</span></div>
  </div>;
 }
