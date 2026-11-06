@@ -33,3 +33,6 @@ jobs:
 
       - name: Verify lineup and substitution feed
         run: node scripts/check-lineup-source.mjs
+
+      - name: Validate live rotation and lineup simulation logic
+        run: node scripts/test-rotation-engine.mjs
