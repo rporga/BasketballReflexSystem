@@ -89,6 +89,20 @@ export default function RotationLab({mode,data,loading,error,onRefresh,prior,liv
       <span>{home.gameSample} / {away.gameSample} recent games</span>
     </div>
     <div className="rotation-squads"><Squad team={away} ids={A}/><Squad team={home} ids={H}/></div>
+    {!!((home.firstQuarterLineups||[]).length||(away.firstQuarterLineups||[]).length)&&
+      <details className="rotation-events rotation-observed">
+        <summary>Observed Five-Man Lineups · Q1</summary>
+        {[away,home].map(t=><div className="rotation-observed-team" key={t.id}>
+          <h4>{t.name}</h4>
+          {(t.firstQuarterLineups||[]).length?(t.firstQuarterLineups||[]).map((g,i)=>
+            <div className="rotation-observed-row" key={i}>
+              <span>{g.ids.map(id=>t.players.find(p=>p.id===id)?.name?.split(' ').slice(-1)[0]||'—').join(' · ')}</span>
+              <small>{g.minutes.toFixed(1)} MIN</small>
+              <strong>{g.plusMinus>0?'+':''}{g.plusMinus} +/-</strong>
+            </div>):<p>No usable first-quarter stints.</p>}
+        </div>)}
+      </details>}
+
     {(home.warnings?.length||away.warnings?.length)?<p className="rotation-warning">{[...(home.warnings||[]),...(away.warnings||[])].join(' · ')}</p>:null}
     {!!(home.events?.length||away.events?.length)&&<details className="rotation-events"><summary>Recent substitutions from play-by-play</summary>
       {[...(home.events||[]).map(e=>({...e,team:home.name})),...(away.events||[]).map(e=>({...e,team:away.name}))].slice(0,8)
