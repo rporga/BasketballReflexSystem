@@ -2,6 +2,7 @@
 
 import {useEffect,useMemo,useState} from 'react';
 import {PROP_DEFS,aggregate,shooting,forecast,comparison,decimalOdds} from '../lib/prop-analytics.js';
+import FeedStamp from './FeedStamp';
 
 const STORAGE='pick-roll-parlay-v2';
 const LEGACY_STORAGE='pick-roll-parlay-v1';
@@ -309,7 +310,7 @@ export default function PlayerPropHub({player,team,feed}){
          <span aria-hidden="true">{details?'−':'+'}</span>
        </button>
        {details&&<Insights data={d} games={games} prop={prop} team={team}/>}
-       <div className="prop-source">ESPN · {count} regular-season games · {d?.metrics?.plusMinus?.sample||0} games with +/−</div>
+       <div className="prop-source">ESPN · {count} regular-season games · {d?.metrics?.plusMinus?.sample||0} games with +/− · <FeedStamp at={d?.fetchedAt} kind="player"/></div>
        </>
      }
    </div>
