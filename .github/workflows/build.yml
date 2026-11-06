@@ -36,3 +36,6 @@ jobs:
 
       - name: Validate live rotation and lineup simulation logic
         run: node scripts/test-rotation-engine.mjs
+
+      - name: Validate live score and game-clock win estimate
+        run: node scripts/test-live-win-model.mjs
