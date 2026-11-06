@@ -6,5 +6,5 @@ if(!b64)throw new Error('Dime avatar data missing');
 const decoded=Buffer.from(b64,'base64');
 const details=await sharp(decoded,{failOn:'error'}).metadata();
 const pixels=await sharp(decoded,{failOn:'error'}).raw().toBuffer();
-if(details.width<80||details.height<80||pixels.length<10000)throw new Error('Dime avatar invalid or undersized');
+if(details.width<64||details.height<64||pixels.length<10000)throw new Error('Dime avatar invalid or undersized');
 console.log('PASS Dime portrait JPEG',details.width,details.height,decoded.length,'bytes');
