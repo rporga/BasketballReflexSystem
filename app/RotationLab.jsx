@@ -1,6 +1,7 @@
 'use client';
 import {useEffect,useMemo,useState} from 'react';
 import {evaluateRotation} from '../lib/rotation-analytics.js';
+import {probabilityMatchesScore} from '../lib/espn-live.js';
 
 const num=(v,d=1)=>v==null?'—':Number(v).toFixed(d);
 const delta=v=>v>0?'+':'';
@@ -15,7 +16,7 @@ function Squad({team,ids}){
     </div>)}</div>
   </details>;
 }
-export default function RotationLab({mode,data,loading,error,onRefresh,prior,liveGame}){
+export default function RotationLab({mode,data,loading,error,onRefresh,prior,liveGame,liveWin}){
   const [homeFive,setHomeFive]=useState([]);
   const [awayFive,setAwayFive]=useState([]);
   const [side,setSide]=useState('home');
@@ -42,8 +43,9 @@ export default function RotationLab({mode,data,loading,error,onRefresh,prior,liv
       status:liveGame.status,period:liveGame.period,clock:liveGame.clock,
       homeScore:liveGame.home?.score,awayScore:liveGame.away?.score
     }:data.game;
-    return evaluateRotation({...data,game:observedGame},{homeIds:H,awayIds:A,attackerId,defenderId,priorHomeWin:prior});
-  },[data,liveGame,homeFive,awayFive,attackerId,defenderId,prior]);
+    const liveHomeWin=probabilityMatchesScore(liveWin,liveGame)?liveWin.home:null;
+    return evaluateRotation({...data,game:observedGame},{homeIds:H,awayIds:A,attackerId,defenderId,priorHomeWin:prior,liveHomeWin});
+  },[data,liveGame,liveWin,homeFive,awayFive,attackerId,defenderId,prior]);
   const labels=new Map([...(home?.players||[]),...(away?.players||[])].map(p=>[p.id,p.name]));
 
   useEffect(()=>{setHomeFive([]);setAwayFive([]);setSide('home');setOutId('');setInId('');
