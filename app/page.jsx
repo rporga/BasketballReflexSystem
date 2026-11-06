@@ -4,6 +4,7 @@ import {useEffect,useState} from 'react';
 import IntelligencePanel from './IntelligencePanel';
 import DimeChat from './DimeChat';
 import ThemeToggle from './ThemeToggle';
+import RotationLab from './RotationLab';
 
 const POLL_LIVE=5000;
 const POLL_IDLE=20000;
@@ -182,6 +183,8 @@ export default function Home() {
   const intelAway=tab==='games'?selectedGame?.away:teams.find(x=>x.id===away);
   const reportUrl=tab!=='players'&&intelHome?.id&&intelAway?.id?'/api/intelligence?'+new URLSearchParams({home:intelHome.id,away:intelAway.id}):null;
   const intelligence=useRemote(reportUrl,180000);
+  const rotationUrl=tab!=='players'&&intelHome?.id&&intelAway?.id?'/api/rotations?'+new URLSearchParams({home:intelHome.id,away:intelAway.id,...(tab==='games'&&gameId?{game:gameId}:{})}):null;
+  const rotation=useRemote(rotationUrl,tab==='games'&&selectedLiveGame?.status==='in'?12000:180000);
   const selectedPlayer=roster.data?.players?.find(p=>p.id===playerId);
   const live=scores.data?.games?.filter(x=>x.status==='in').length || 0;
   const pages=[{id:'games',symbol:'◉',label:'Live Games'},{id:'teams',symbol:'▥',label:'Matchup Lab'},{id:'players',symbol:'♧',label:'Player Explorer'}];
@@ -197,6 +200,8 @@ export default function Home() {
       <div className="workspace-meta"><span>PICK & ROLL <b>/</b> INTELLIGENCE</span><span>{pages.find(x=>x.id===tab)?.label.toUpperCase()}</span></div>
       {tab==='teams'&&<div className="matchup-selector"><div className="module-line"><div><span>BUILD YOUR MATCHUP</span><h2>Select Teams</h2></div></div>    <section className="panel padded"><div className="heading-row"><h2>Matchup</h2><small className="muted">Most recent 10 completed regular-season games</small></div><div className="team-pickers"><label>HOME TEAM<select value={home} onChange={e=>{setHome(e.target.value);if(e.target.value===away)setAway(home);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><span>VS</span><label>AWAY TEAM<select value={away} onChange={e=>{setAway(e.target.value);if(e.target.value===home)setHome(away);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label></div></section></div>}
       {tab==='games'&&<Games date={date} setDate={setDate} score={scores} gameId={gameId} setGameId={setGameId} detail={detail}/>}
+      {tab!=='players'&&<RotationLab key={rotationUrl||'rotation'} mode={tab} data={rotation.data} loading={rotation.loading}
+        error={rotation.error} onRefresh={rotation.refresh} prior={intelligence.data?.prediction?.homeWin??null}/>}
       <IntelligencePanel mode={tab} home={intelHome} away={intelAway} report={intelligence.data} loading={intelligence.loading} error={intelligence.error} onRefresh={intelligence.refresh} player={selectedPlayer} playerStats={stats.data} playerLoading={stats.loading} playerError={stats.error}/>
       {tab==='teams'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}<Matchup teams={teams} home={home} setHome={setHome} away={away} setAway={setAway} first={formA} second={formB}/></>}
       {tab==='players'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}<PlayerView teams={teams} teamId={teamId} setTeamId={setTeamId} roster={roster} playerId={playerId} setPlayerId={setPlayerId} stats={stats}/></>}
