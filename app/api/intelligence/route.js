@@ -92,10 +92,20 @@ function observations(name,m) {
   words.push('Most difficult quarter by scoring differential: Q'+m.worstQuarter+' ('+(qWorst.margin>=0?'+':'')+qWorst.margin.toFixed(1)+').');
   return words;
 }
+function injuryAthleteId(athlete) {
+  if(!athlete)return '';
+  const candidates=[athlete.id,athlete.uid?.match(/~a:(\d+)/)?.[1],athlete.$ref?.match(/athletes\/(\d+)/)?.[1]];
+  for (const link of athlete.links||[]) {
+    const href=link.href||'';
+    candidates.push(href.match(/\/id\/(\d+)(?:\/|$)/)?.[1]);
+    candidates.push(href.match(/~a:(\d+)/)?.[1]);
+  }
+  return String(candidates.find(value=>/^\d{1,12}$/.test(String(value||'')))||'');
+}
 function normalizedInjuries(raw,teamId) {
   const bucket=(raw.injuries||[]).find(x=>String(x.id)===teamId);
   return (bucket?.injuries||[]).map(i=>({
-    id:String(i.athlete?.id || ''),name:text(i.athlete?.displayName),status:text(i.status),
+    id:injuryAthleteId(i.athlete),name:text(i.athlete?.displayName),status:text(i.status),
     detail:text(i.shortComment),date:text(i.date),injury:text(i.type?.description || i.details?.type || '')
   })).filter(i=>i.name);
 }
@@ -114,19 +124,23 @@ const relevance={out:1,doubtful:.8,questionable:.4,daytoday:.35,probable:.1};
 async function injuryReport(raw,id) {
   const entries=normalizedInjuries(raw,id);
   const current=entries.filter(x=>relevance[statusKey(x.status)]!==undefined);
-  const scored=await Promise.all(current.slice(0,8).map(async x=>{
+  const scored=await Promise.all(current.slice(0,12).map(async x=>{
     const hrs=x.date?(Date.now()-new Date(x.date).getTime())/HOURS:null;
     const fresh=hrs!==null&&hrs>=-6&&hrs<=72;
     const ppg=await playerPPG(x.id);
     const weight=relevance[statusKey(x.status)] || 0;
     // Approximation only: not a measured on/off effect or lineup model.
-    const adjustment=fresh&&ppg!==null?Math.min(3.5,ppg*.20*weight):0;
-    return {...x,ppg,reportAgeHours:hrs===null?null:round(hrs),includedInEstimate:fresh&&ppg!==null&&weight>0,estimatedPoints:round(adjustment,2)};
+    const includedInEstimate=fresh&&ppg!==null&&weight>0;
+    const adjustment=includedInEstimate?Math.min(3.5,ppg*.20*weight):null;
+    return {...x,ppg,reportAgeHours:hrs===null?null:round(hrs),includedInEstimate,estimatedPoints:adjustment===null?null:round(adjustment,2)};
   }));
-  const unscored=entries.filter(x=>!scored.some(s=>s.id===x.id)).map(x=>({...x,ppg:null,estimatedPoints:0,includedInEstimate:false,reportAgeHours:null}));
+  const scoredNames=new Set(scored.map(x=>x.name));
+  const unscored=entries.filter(x=>!scoredNames.has(x.name)).map(x=>({...x,ppg:null,estimatedPoints:null,includedInEstimate:false,reportAgeHours:null}));
   const players=[...scored,...unscored];
-  return {players,reportCount:players.length,quantified:scored.filter(x=>x.includedInEstimate).length,
-    totalAdjustment:round(Math.min(7,scored.reduce((acc,x)=>acc+x.estimatedPoints,0)),2),reportSource:'ESPN public injuries',assumption:'Status weights: Out 100%, Doubtful 80%, Questionable 40%, Day-to-day 35%, Probable 10%; uses 20% of player season PPG (max 3.5 points per player, 7 total). Only reports updated within 72 hours with available season PPG are quantified. This is a heuristic, not a measured on/off model.'};
+  const quantified=scored.filter(x=>x.includedInEstimate).length;
+  const unknown=scored.filter(x=>!x.includedInEstimate).length;
+  return {players,reportCount:players.length,quantified,unquantified:unknown,
+    totalAdjustment:quantified===0&&current.length>0?null:round(Math.min(7,scored.reduce((acc,x)=>acc+(x.estimatedPoints??0),0)),2),reportSource:'ESPN public injuries',assumption:'Status weights: Out 100%, Doubtful 80%, Questionable 40%, Day-to-day 35%, Probable 10%; uses 20% of player season PPG (max 3.5 points per player, 7 total). Only reports updated within 72 hours with available season PPG are quantified. This is a heuristic, not a measured on/off model.'};
 }
 function probability(h,a,hi,ai) {
   if(!h||!a)return null;
@@ -136,7 +150,7 @@ function probability(h,a,hi,ai) {
     return base*(m.sample/(m.sample+8));
   }
   const baseline=1.8+rating(h)-rating(a);
-  const adjusted=baseline-hi.totalAdjustment+ai.totalAdjustment;
+  const adjusted=baseline-(hi.totalAdjustment??0)+(ai.totalAdjustment??0);
   const p=1/(1+Math.exp(-adjusted/8.8));
   const rawP=1/(1+Math.exp(-baseline/8.8));
   return {homeWin:round(p*100,1),awayWin:round(100-p*100,1),
@@ -158,7 +172,7 @@ function insights(home,away,mh,ma,prob,hi,ai) {
     messages.push('Fourth-quarter matchup edge: '+(fourth>=0?home:away)+' by '+Math.abs(fourth).toFixed(1)+' average Q4 margin points.');
     messages.push('Halftime adjustment: '+home+' changes its scoring margin '+(mh.half.halfTimeRecovery>=0?'+':'')+mh.half.halfTimeRecovery.toFixed(1)+' from H1 to H2; '+away+' changes '+(ma.half.halfTimeRecovery>=0?'+':'')+ma.half.halfTimeRecovery.toFixed(1)+'.');
   }
-  messages.push('Estimated injury adjustment: '+home+' −'+hi.totalAdjustment+' pts, '+away+' −'+ai.totalAdjustment+' pts. Only recently updated player reports with measurable season PPG affect this estimate.');
+  messages.push('Estimated injury adjustment: '+home+' '+(hi.totalAdjustment===null?'not quantified':'−'+hi.totalAdjustment+' pts')+', '+away+' '+(ai.totalAdjustment===null?'not quantified':'−'+ai.totalAdjustment+' pts')+'. Only recently updated player reports with available season PPG affect this estimate.');
   return messages;
 }
 function sendError(message,status=502){return NextResponse.json({error:message},{status,headers:{'Cache-Control':'no-store'}});}
