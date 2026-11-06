@@ -1141,3 +1141,32 @@ html[data-theme="dark"] .back-to-top:hover{background:#39291f;color:#ff9562;bord
   .back-to-top{right:12px}
 }
 @media(prefers-reduced-motion:reduce){.back-to-top{transition:none}}
+
+
+/* Player Explorer flow: select team and player -> view profile/stats -> read intelligence. */
+.players-layout{align-items:start}
+.players-layout>.panel{min-width:0;height:auto}
+.player-report-after-selection{margin:clamp(20px,2.4vw,30px) 0 28px;min-width:0;clear:both}
+.player-report-after-selection .intel-player{margin:0;padding:clamp(20px,2.5vw,30px);min-width:0}
+.player-report-after-selection .intel-top{margin-bottom:13px}
+.player-report-after-selection .intel-identity{margin-bottom:15px}
+.player-report-after-selection .intel-player-highlights{margin:20px 0 16px}
+.player-report-after-selection .scout-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:22px}
+.player-report-after-selection .scout-item{padding:13px 0;min-width:0}
+.player-report-after-selection .scout-item:nth-child(2){border-top:0}
+.player-report-after-selection .evidence-foot{margin-top:12px}
+@media(max-width:950px){
+  .players-layout{gap:15px}
+  .player-report-after-selection{margin-top:18px}
+}
+@media(max-width:650px){
+  .player-report-after-selection{margin-top:16px;margin-bottom:24px}
+  .player-report-after-selection .intel-player{padding:18px}
+  .player-report-after-selection .intel-identity{margin-bottom:13px}
+  .player-report-after-selection .intel-player-highlights{margin:16px 0 12px;gap:9px}
+  .player-report-after-selection .intel-player-highlights>div{padding:13px}
+  .player-report-after-selection .scout-list{grid-template-columns:1fr}
+  .player-report-after-selection .scout-item:nth-child(2){border-top:1px solid var(--line)}
+  .player-report-after-selection .scout-item{padding:12px 0}
+  .player-report-after-selection .evidence-foot{margin-top:8px}
+}
