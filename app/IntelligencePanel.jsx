@@ -6,7 +6,7 @@ import {liveWinEstimate} from '../lib/live-win-model.js';
 const signed = (v,d=1) => v==null?'—':(v>0?'+':'')+Number(v).toFixed(d);
 const fmt = v => v==null?'—':Number(v).toFixed(1);
 function Evidence({source}) {
-  return <div className="evidence-foot"><span>DATA LINEAGE</span><span>{source}</span></div>;
+  return <div className="evidence-foot"><span>SOURCE</span><span>{source}</span></div>;
 }
 function Scouting({items=[]}) {
   return <div className="scout-list">{items.map((item,index)=><div className="scout-item" key={index}><span className="scout-index">{String(index+1).padStart(2,'0')}</span><p>{item.replaceAll('*','')}</p></div>)}</div>;
@@ -30,9 +30,9 @@ function InjuryList({report,title}) {
     {!rows.length?<p className="intel-muted">No active-status injuries returned in the current feed. That does not guarantee a full-strength roster.</p>:rows.map((p,i)=><div className="injury-person" key={p.id||i}>
       <div className="injury-person-main"><b>{p.name}</b><span className={'status-token '+p.status.toLowerCase().replace(/[^a-z]/g,'')}>{p.status}</span></div>
       <p>{p.detail || p.injury || 'No injury details supplied.'}</p>
-      <div className="injury-meta"><span>{p.ppg!=null?fmt(p.ppg)+' PPG':'Season PPG unavailable'}</span><span>{p.includedInEstimate?'Model adjustment: −'+fmt(p.estimatedPoints)+' pts':'Not quantified in current estimate'}</span></div>
+      <div className="injury-meta"><span>{p.ppg!=null?fmt(p.ppg)+' PPG':'Season PPG unavailable'}</span><span>{p.includedInEstimate?'Impact: −'+fmt(p.estimatedPoints)+' pts':'Impact unavailable'}</span></div>
     </div>)}
-    <div className="injury-team-total"><span>ESTIMATED INJURY IMPACT</span><strong>{report?.totalAdjustment==null?'Not quantified':'−'+fmt(report.totalAdjustment)+' pts'}</strong></div>
+    <div className="injury-team-total"><span>EST. IMPACT</span><strong>{report?.totalAdjustment==null?'Not quantified':'−'+fmt(report.totalAdjustment)+' pts'}</strong></div>
   </div>;
 }
 function PlayerIntelligence({player,stats,loading,error}) {
@@ -49,7 +49,7 @@ function PlayerIntelligence({player,stats,loading,error}) {
     <div className="intel-top"><span className="intel-kicker">PLAYER INTELLIGENCE</span><span className="intel-mode">DATA-DERIVED REPORT</span></div>
     <div className="intel-identity"><div><h2>Player Report</h2>{player&&<p>{player.name}</p>}</div><span className="intel-live">CURRENT SEASON</span></div>
     {loading?<p className="intel-muted">Reading player statistics…</p>:error?<p className="intel-muted">{error}</p>:analysis.length?<><div className="intel-player-highlights">{[['POINTS',scored],['ASSISTS',assists],['REBOUNDS',reb],['MINUTES',minutes]].map(([label,value])=><div key={label}><span>{label}</span><strong>{value||'—'}</strong></div>)}</div><Scouting items={analysis}/></>:<p className="intel-muted">Select a player with available season averages to generate a report.</p>}
-    <Evidence source="ESPN player-season statistics · deterministic scouting analysis, not a generative AI model"/>
+    <Evidence source="ESPN · Player statistics"/>
   </section>;
 }
 function StartingFives({rotation,loading,home,away}) {
@@ -58,11 +58,11 @@ function StartingFives({rotation,loading,home,away}) {
   const available=teams?.home?.onCourt?.length===5&&teams?.away?.onCourt?.length===5;
   return <div className="model-lineups">
     <div className="model-lineups-heading"><div><span className="intel-kicker">WHO'S ON THE FLOOR</span><h4>Starting Five & Current Lineups</h4></div>
-      <span className="model-lineups-note">{gameStatus==='in'?'LIVE LINEUP / EVIDENCE-BASED':'RECENT GAME STARTERS'}</span></div>
+      <span className="model-lineups-note">{gameStatus==='in'?'LIVE LINEUP':'LATEST STARTERS'}</span></div>
     {available?<div className="model-lineups-grid">
       {[['away',away],['home',home]].map(([side,team])=>{
         const squad=teams[side],liveVerified=gameStatus==='in'&&squad.source==='play-by-play reconstructed';
-        const label=liveVerified?'SUBSTITUTIONS RECONSTRUCTED':gameStatus==='in'?'LIVE LINEUP UNVERIFIED':gameStatus==='post'?'GAME LINEUP':'LATEST REPORTED STARTERS';
+        const label=liveVerified?'LIVE · PBP':gameStatus==='in'?'UNCONFIRMED':gameStatus==='post'?'GAME FIVE':'RECENT FIVE';
         return <div className="model-lineups-team" key={side}>
           <div className="model-lineups-team-heading"><strong>{team?.abbreviation||squad.name}</strong><span>{label}</span></div>
           <div className="model-lineups-players">{squad.onCourt.map(player=><div className="model-lineups-player" key={player.id}>
@@ -72,7 +72,7 @@ function StartingFives({rotation,loading,home,away}) {
         </div>;
       })}
     </div>:<p className="intel-muted">{loading?'Checking starters and game substitutions…':'Reliable five-player lineups are not available from the current source.'}</p>}
-    <p className="model-lineups-disclaimer">Source: ESPN game boxscore and play-by-play. A recent starting five is <b>not</b> a confirmed future lineup. Live on-court players are reconstructed from substitution events where available, not verified by player tracking. For full rosters and what-if changes, open Rotation Explorer at the bottom.</p>
+    <p className="model-lineups-disclaimer">ESPN · Live lineups inferred from substitutions; pregame five from the latest game.</p>
   </div>;
 }
 function LiveScore({game,fetchedAt}){
@@ -89,7 +89,7 @@ function LiveScore({game,fetchedAt}){
         <div><strong>{game.away?.abbreviation||'AWAY'}</strong><span>{game.away?.name||'Away team'}</span></div>
         <b>{game.status==='pre'?'—':game.away?.score??'—'}</b>
       </div>
-      <div className="live-score-clock"><strong>{label}</strong><span>{inProgress?'Score-based outlook updates with the feed':finished?'Result confirmed by scoreboard':'Live tracking starts at tip-off'}</span></div>
+      <div className="live-score-clock"><strong>{label}</strong><span>{inProgress?'Updating live':finished?'Game complete':'Awaiting tip-off'}</span></div>
       <div className="live-score-side home">
         <b>{game.status==='pre'?'—':game.home?.score??'—'}</b>
         <div><strong>{game.home?.abbreviation||'HOME'}</strong><span>{game.home?.name||'Home team'}</span></div>
@@ -104,7 +104,7 @@ function LiveScore({game,fetchedAt}){
         </div>)}
       </div>
     </div>:null}
-    <div className="live-score-freshness">{inProgress?'Auto refresh approximately every 5 seconds while a game is live; actual changes follow ESPN updates.':'ESPN score and game status'}
+    <div className="live-score-freshness">{'ESPN game data'}
       {fetchedAt?<span> · Feed fetched {new Date(fetchedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>:null}
     </div>
   </div>;
@@ -141,27 +141,23 @@ function Model({report,home,away,rotation,rotationLoading,game,scoreboardFetched
     {game?<LiveScore game={game} fetchedAt={scoreboardFetchedAt}/>:null}
     <div className="model-top"><div><span className="intel-kicker">{isLive?'LIVE GAME STATE':isFinal?'FINAL GAME':game?'BEFORE TIP-OFF':'MATCHUP MODEL'}</span>
       <h3>{isFinal?'Final Result':isLive?'Live Win Estimate':'Win Probability'}</h3></div>
-      <div className="model-grade">{isLive?'EXPERIMENTAL · SCORE + CLOCK':isFinal?'FINAL':pred?.grade||'AWAITING MODEL'}</div>
+      <div className="model-grade">{isLive?'LIVE · EXPERIMENTAL':isFinal?'FINAL':pred?'PREGAME · ESTIMATE':'PENDING'}</div>
     </div>
     {isFinal?<div className="live-no-prob">The game is finished. The score above is the result; a live win forecast no longer applies.</div>:
-    hasEstimate?<><div className="prob-heading"><div><span>{isLive?'CURRENTLY FAVOURED · EXPLORATORY':'FAVOURED TO WIN · PREGAME'}</span>
+    hasEstimate?<><div className="prob-heading"><div><span>{'FAVOURED TO WIN'}</span>
       <strong>{favoured?.name}</strong></div><b>{Math.max(prob,100-prob).toFixed(1)}<small>%</small></b></div>
       <div className="prob-vs"><span>{home?.abbreviation} {prob.toFixed(1)}%</span><span>{away?.abbreviation} {(100-prob).toFixed(1)}%</span></div>
       <div className="prob-track" role="img" aria-label={home?.name+' '+prob.toFixed(1)+' percent estimated chance; '+away?.name+' '+(100-prob).toFixed(1)+' percent'}><div style={{width:prob+'%'}}/></div>
-      {isLive?<p className="live-estimate-note">Updated from the selected game's latest score, period and clock, with the historical pregame estimate as a starting point. It changes as the scoreboard changes; this is an <b>uncalibrated heuristic</b>, not a trained NBA live win-probability model.</p>:null}
     </>:<p className="live-no-prob">{isLiveUnavailable?'Waiting for an available live game clock and score before displaying an in-game estimate.':pred?'Game state estimate unavailable.':'Win probability is unavailable until the recent team data can be analysed.'}</p>}
     <StartingFives rotation={rotation} loading={rotationLoading} home={home} away={away}/>
     {pred&&!isLive&&!isFinal&&!isLiveUnavailable?<div className="model-pregame-assumptions">
       <div className="model-scenarios"><span>PLAYER AVAILABILITY SCENARIO</span><div className="scenario-tabs">
         {[['weighted','Reported status'],['none','No injuries'],['allout','All flagged out']].map(([key,label])=><button onClick={()=>setScenario(key)} className={scenario===key?'active':''} key={key} aria-pressed={scenario===key}>{label}</button>)}
       </div></div>
-      <div className="model-diagnostics"><div><small>HOME INJURY ADJUSTMENT</small><strong>{scenarioResult?.homeDeduction==null?'Unquantified':'−'+fmt(scenarioResult.homeDeduction)+' PTS'}</strong></div>
-        <div><small>AWAY INJURY ADJUSTMENT</small><strong>{scenarioResult?.awayDeduction==null?'Unquantified':'−'+fmt(scenarioResult.awayDeduction)+' PTS'}</strong></div>
-        <div><small>MODEL BEFORE INJURIES</small><strong>{fmt(pred.withoutInjuries)}%</strong></div>
-        <div><small>HOME COURT ASSUMPTION</small><strong>{'+'+fmt(pred.homeAdvantage)+' PTS'}</strong></div>
+      <div className="model-diagnostics"><div><small>HOME INJURY IMPACT</small><strong>{scenarioResult?.homeDeduction==null?'Unquantified':'−'+fmt(scenarioResult.homeDeduction)+' PTS'}</strong></div>
+        <div><small>AWAY INJURY IMPACT</small><strong>{scenarioResult?.awayDeduction==null?'Unquantified':'−'+fmt(scenarioResult.awayDeduction)+' PTS'}</strong></div>
       </div>
     </div>:null}
-    <p className="model-warning">{isLive?'Live estimates are experimental and not backtested or calibrated. They respond to scoreboard changes, not verified possession-level tracking or active defender assignments.':isFinal?'Final scores are historical game results, not forecasts.':'Pregame probabilities are uncalibrated heuristics based on recent game data and injury reports, not validated betting odds.'}</p>
   </div>;
 }
 export default function IntelligencePanel({mode,home,away,report,loading,error,onRefresh,rotation,rotationLoading,game,scoreboardFetchedAt,gameBoxscore,player,playerStats,playerLoading,playerError}) {
@@ -181,10 +177,10 @@ export default function IntelligencePanel({mode,home,away,report,loading,error,o
       {!report&&(loading?<div className="intel-loading"><p>Analysing recent games, quarter patterns and injuries… The live score and game estimate above continue updating.</p></div>:
         error?<div className="intel-surface"><p className="intel-muted">{error}</p><button className="intel-refresh" onClick={onRefresh}>Retry scouting ↻</button></div>:null)}
       {report&&<>
-      <div className="intel-surface scouting-surface"><div className="model-top"><div><span className="intel-kicker">SCOUTING NOTES</span><h3>Key Takeaways</h3></div><span className="scout-count">{report.insights?.length||0} SIGNALS</span></div><Scouting items={report.insights||[]}/><div className="scout-mini">Analysis built from completed games, not generated from fictional results.</div></div>
-      <div className="intel-surface quarter-wide"><div className="model-top"><div><span className="intel-kicker">TEAM TENDENCIES</span><h3>Quarter Analysis</h3></div><span className="scout-count">ACTUAL SCORES</span></div><div className="lens-pills"><button className={view==='all'?'active':''} onClick={()=>setView('all')}>Both teams</button><button className={view==='home'?'active':''} onClick={()=>setView('home')}>{home.abbreviation}</button><button className={view==='away'?'active':''} onClick={()=>setView('away')}>{away.abbreviation}</button></div><div className={'quarter-compare '+(view!=='all'?'single':'')}>{(view==='all'||view==='home')&&<QuarterLens title={home.name} metrics={h?.metrics} games={h?.games} side="HOME"/>}{(view==='all'||view==='away')&&<QuarterLens title={away.name} metrics={a?.metrics} games={a?.games} side="AWAY"/>}</div><div className="quarter-context"><b>Reading the quarters:</b> Net = points scored minus points allowed in that quarter. Q won = number of games in which the team outscored its opponent in that quarter. The data is descriptive; quarter trends may regress as more games are played.</div></div>
-      <div className="intel-surface injury-wide"><div className="model-top"><div><span className="intel-kicker">AVAILABILITY</span><h3>Injury Report</h3></div><span className="scout-count">UPDATED REPORT</span></div><div className="injury-grid"><InjuryList title={home.name} report={report.injuryReports?.home}/><InjuryList title={away.name} report={report.injuryReports?.away}/></div><p className="model-warning">Injury statuses come from ESPN and may change or be incomplete. An estimated points deduction is based on a player's season PPG and status weights, not an on/off lineup model. Reports older than 72 hours or without PPG do not change the probability.</p></div>
-      <div className="intel-provenance"><span>ESPN NBA · {h?.metrics?.sample||0} HOME GAMES / {a?.metrics?.sample||0} AWAY GAMES</span><span>{report.fetchedAt?'ANALYSIS '+new Date(report.fetchedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):''} · LIVE SCORES REFRESH SEPARATELY</span></div>
+      <div className="intel-surface scouting-surface"><div className="model-top"><div><span className="intel-kicker">SCOUTING NOTES</span><h3>Key Takeaways</h3></div><span className="scout-count">{report.insights?.length||0} SIGNALS</span></div><Scouting items={report.insights||[]}/></div>
+      <div className="intel-surface quarter-wide"><div className="model-top"><div><span className="intel-kicker">TEAM TENDENCIES</span><h3>Quarter Analysis</h3></div><span className="scout-count">ACTUAL SCORES</span></div><div className="lens-pills"><button className={view==='all'?'active':''} onClick={()=>setView('all')}>Both teams</button><button className={view==='home'?'active':''} onClick={()=>setView('home')}>{home.abbreviation}</button><button className={view==='away'?'active':''} onClick={()=>setView('away')}>{away.abbreviation}</button></div><div className={'quarter-compare '+(view!=='all'?'single':'')}>{(view==='all'||view==='home')&&<QuarterLens title={home.name} metrics={h?.metrics} games={h?.games} side="HOME"/>}{(view==='all'||view==='away')&&<QuarterLens title={away.name} metrics={a?.metrics} games={a?.games} side="AWAY"/>}</div><div className="quarter-context">Net = scored − allowed · Q won = winning quarters.</div></div>
+      <div className="intel-surface injury-wide"><div className="model-top"><div><span className="intel-kicker">AVAILABILITY</span><h3>Injury Report</h3></div><span className="scout-count">UPDATED REPORT</span></div><div className="injury-grid"><InjuryList title={home.name} report={report.injuryReports?.home}/><InjuryList title={away.name} report={report.injuryReports?.away}/></div></div>
+      <div className="intel-provenance"><span>SOURCE · ESPN · {h?.metrics?.sample||0} HOME / {a?.metrics?.sample||0} AWAY GAMES</span><span>{report.fetchedAt?'ANALYSIS '+new Date(report.fetchedAt).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):''}</span></div>
       </>}
     </div>}
   </section>;
