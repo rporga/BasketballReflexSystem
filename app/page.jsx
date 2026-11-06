@@ -8,6 +8,8 @@ import BackToTop from './BackToTop';
 import RotationLab from './RotationLab';
 import PlayerPropHub from './PlayerPropHub';
 import FeedStamp from './FeedStamp';
+import {AnalyticsPreferencesButton} from './AnalyticsConsent';
+import {trackEvent,ANALYTICS_READY_EVENT} from '../lib/analytics.js';
 
 const POLL_LIVE=5000;
 const POLL_IDLE=20000;
@@ -120,7 +122,7 @@ function Games({date,setDate,score,gameId,setGameId,detail}) {
     {score.loading && <Notice>Fetching the real NBA scoreboard…</Notice>}
     {score.error && <Notice error retry={score.refresh}>Unable to fetch games: {score.error}</Notice>}
     {!score.loading && !score.error && !games.length && <Notice>No NBA games were returned for this date. Choose another day.</Notice>}
-    {!!games.length && <div className="games-grid">{games.map(g=><GameCard key={g.id} game={g} selected={g.id===gameId} click={()=>setGameId(g.id)}/>)}</div>}
+    {!!games.length && <div className="games-grid">{games.map(g=><GameCard key={g.id} game={g} selected={g.id===gameId} click={()=>{setGameId(g.id);trackEvent('game_selected',{game_id:g.id});}}/>)}</div>}
   </>;
 }
 function Form({data,loading,error,retry}) {
@@ -156,12 +158,12 @@ function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,propsFee
     <div className="module-line"><div><span>PLAYER EXPLORER</span><h2>Player Statistics</h2></div></div>
     <div className="players-layout">
       <section className="panel padded"><h2>Select a team</h2>
-        <label className="input-label">NBA TEAM<select value={teamId} onChange={e=>setTeamId(e.target.value)}>
+        <label className="input-label">NBA TEAM<select value={teamId} onChange={e=>{setTeamId(e.target.value);trackEvent('matchup_team_selected',{side:'player_team',team_id:e.target.value});}}>
           <option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}
         </select></label>
         <div className="team-heading"><Logo team={selectedTeam} size={42}/><div><h3>{selectedTeam?.name||'NBA'}</h3><small>{players.length} roster players</small></div></div>
         <label className="player-mobile-picker">CHOOSE PLAYER
-          <select value={playerId} onChange={e=>setPlayerId(e.target.value)}>
+          <select value={playerId} onChange={e=>{setPlayerId(e.target.value);trackEvent('player_selected',{player_id:e.target.value,team_id:teamId});}}>
             {players.length===0&&<option value="">Choose a player</option>}
             {players.map(p=><option key={p.id} value={p.id}>{p.name} · {p.position}</option>)}
           </select>
@@ -169,7 +171,7 @@ function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,propsFee
         {roster.loading&&<Notice>Loading team roster…</Notice>}
         {roster.error&&<Notice error retry={roster.refresh}>{roster.error}</Notice>}
         <div className="roster-list">{players.map(p=><button key={p.id} type="button"
-          className={p.id===playerId?'active':''} aria-pressed={p.id===playerId} onClick={()=>setPlayerId(p.id)}>
+          className={p.id===playerId?'active':''} aria-pressed={p.id===playerId} onClick={()=>{setPlayerId(p.id);trackEvent('player_selected',{player_id:p.id,team_id:teamId});}}>
           <span className="headshot">{p.headshot?<img src={p.headshot} width="42" height="42" alt=""/>:p.jersey||'•'}</span>
           <span><strong>{p.name}</strong><small>{p.position}{p.jersey?' · #'+p.jersey:''}</small></span><b aria-hidden="true">›</b>
         </button>)}</div>
@@ -199,6 +201,12 @@ export default function Home() {
   const [away,setAway]=useState('');
   const [teamId,setTeamId]=useState('');
   const [playerId,setPlayerId]=useState('');
+  useEffect(()=>{
+    const emit=()=>trackEvent('section_view',{section:tab});
+    emit();
+    window.addEventListener(ANALYTICS_READY_EVENT,emit);
+    return ()=>window.removeEventListener(ANALYTICS_READY_EVENT,emit);
+  },[tab]);
   const teamsFeed=useRemote(api('teams'),300000);
   const teams=teamsFeed.data?.teams || [];
   useEffect(()=>{if(!teams.length)return;const a=teams.find(x=>x.abbreviation==='BOS')?.id || teams[0].id;const b=teams.find(x=>x.abbreviation==='LAL')?.id || teams.find(x=>x.id!==a)?.id;setHome(x=>x||a);setAway(x=>x||b);setTeamId(x=>x||a);},[teamsFeed.data?.fetchedAt]);
@@ -233,7 +241,7 @@ export default function Home() {
         <div><h1>Pick &amp; Roll</h1><p className="brand-intro-tagline">Understand the game. Anticipate what happens next.</p></div>
         <p className="brand-intro-description">Live NBA intelligence that connects player performance, matchups, rotations and statistical projections in one place.</p>
       </div>}
-      {tab==='teams'&&<div className="matchup-selector"><div className="module-line"><div><span>BUILD YOUR MATCHUP</span><h2>Select Teams</h2></div></div>    <section className="panel padded"><div className="heading-row"><h2>Matchup</h2><small className="muted">Most recent 10 completed regular-season games</small></div><div className="team-pickers"><label>HOME TEAM<select value={home} onChange={e=>{setHome(e.target.value);if(e.target.value===away)setAway(home);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><span>VS</span><label>AWAY TEAM<select value={away} onChange={e=>{setAway(e.target.value);if(e.target.value===home)setHome(away);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label></div></section></div>}
+      {tab==='teams'&&<div className="matchup-selector"><div className="module-line"><div><span>BUILD YOUR MATCHUP</span><h2>Select Teams</h2></div></div>    <section className="panel padded"><div className="heading-row"><h2>Matchup</h2><small className="muted">Most recent 10 completed regular-season games</small></div><div className="team-pickers"><label>HOME TEAM<select value={home} onChange={e=>{setHome(e.target.value);if(e.target.value===away)setAway(home);trackEvent('matchup_team_selected',{side:'home',team_id:e.target.value});}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><span>VS</span><label>AWAY TEAM<select value={away} onChange={e=>{setAway(e.target.value);if(e.target.value===home)setHome(away);trackEvent('matchup_team_selected',{side:'away',team_id:e.target.value});}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label></div></section></div>}
       {tab==='games'&&<Games date={date} setDate={setDate} score={scores} gameId={gameId} setGameId={setGameId}/>}
       {tab!=='players'&&<IntelligencePanel mode={tab} home={intelHome} away={intelAway} report={intelligence.data} loading={intelligence.loading} error={intelligence.error}
         onRefresh={intelligence.refresh} rotation={rotation.data} rotationLoading={rotation.loading}
@@ -248,7 +256,7 @@ export default function Home() {
         {teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}
         <PlayerView teams={teams} teamId={teamId} setTeamId={setTeamId} roster={roster} playerId={playerId} setPlayerId={setPlayerId} propsFeed={propsFeed}/>
       </>}
-      <footer className="site-footer"><span>PICK & ROLL <b>© 2026</b></span><span>Independent NBA analytics · ESPN <a href="/about">About &amp; model accuracy</a></span></footer>
+      <footer className="site-footer"><span>PICK & ROLL <b>© 2026</b></span><span>Independent NBA analytics · ESPN <a href="/about">About &amp; model accuracy</a><AnalyticsPreferencesButton/></span></footer>
     </div></main>
     <nav className="mobile-bottom-nav" aria-label="Mobile primary navigation">
       {pages.map(p=><button type="button" key={p.id} className={'mobile-tab '+(tab===p.id?'active':'')}
