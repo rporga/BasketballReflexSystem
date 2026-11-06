@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { sourceWinProbability } from '../../../lib/espn-live.js';
 
 const ROOT = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba';
 const PLAYER_ROOT = 'https://site.web.api.espn.com/apis/common/v3/sports/basketball/nba';
@@ -70,6 +71,7 @@ async function game(id) {
   const data=await request(ROOT+'/summary?event='+id,5);
   return {
     id,
+    winProbability:sourceWinProbability(data),
     players:(data.boxscore?.players || []).map(group => {
       const block=group.statistics?.[0] || {};
       const columns=block.labels || [];
