@@ -25,7 +25,7 @@ assert.equal(stints['2'][0].minutes,12);
 assert.ok(stints['1'].some(x=>x.ids.includes('16')));
 assert.equal(combineLineupStints([fixture,fixture],'1').length,2);
 const broken=structuredClone(fixture);
-broken.plays[11].participants=[{athlete:{id:'88'}},{athlete:{id:'12'}}];
+broken.plays[11].participants=[{athlete:{id:'88'}},{athlete:{id:'99'}}];
 broken.plays[11].type.text='Substitution';
 assert.deepEqual(firstQuarterStints(broken),{});
 console.log('PASS reconstructed Q1 five-man lineups, substitutions, minutes and evidence failure mode');
