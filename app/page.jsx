@@ -3,6 +3,7 @@
 import {useEffect,useState} from 'react';
 import IntelligencePanel from './IntelligencePanel';
 import DimeChat from './DimeChat';
+import ThemeToggle from './ThemeToggle';
 
 const POLL_LIVE=5000;
 const POLL_IDLE=20000;
@@ -189,7 +190,7 @@ export default function Home() {
       <div className="site-header-inner">
         <a href="/" className="wordmark" aria-label="Pick and Roll, go to live games" onClick={e=>{e.preventDefault();setTab('games')}}><img src="/pick-roll-logo.svg" alt="Pick & Roll" /></a>
         <nav className="topnav" aria-label="Main navigation">{pages.map(p=><button key={p.id} className={'nav-item '+(tab===p.id?'active':'')} onClick={()=>setTab(p.id)} aria-current={tab===p.id?'page':undefined}>{p.label}</button>)}</nav>
-        <div className="header-actions"><span className="system-label"><i/> NBA DATA</span>{live?<span className="live-pulse">{live} LIVE NOW</span>:null}</div>
+        <div className="header-actions"><ThemeToggle/>{live?<span className="live-pulse">{live} LIVE NOW</span>:null}</div>
       </div>
     </header>
     <main className="main-stage"><div className="content">
