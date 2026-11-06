@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {liveWinEstimate,minutesRemaining} from '../lib/live-win-model.js';
 const game=(status,period,clock,home,away)=>({status,period,clock,home:{score:home},away:{score:away}});
 assert.equal(minutesRemaining(1,'12:00'),48);
-assert.equal(minutesRemaining(3,'05:30'),18.5);
+assert.equal(minutesRemaining(3,'05:30'),17.5);
 assert.equal(minutesRemaining(4,'00:00'),0);
 assert.equal(minutesRemaining(5,'03:40'),3+40/60);
 assert.equal(minutesRemaining(3,'bad clock'),null);
