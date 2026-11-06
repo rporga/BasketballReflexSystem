@@ -1,5 +1,6 @@
 import './globals.css';
 import ServiceWorkerRegister from './ServiceWorkerRegister';
+import AnalyticsConsent from './AnalyticsConsent';
 
 const SITE_URL = 'https://basketballreflexsystem.vercel.app';
 const TAGLINE = 'Understand the game. Anticipate what happens next.';
@@ -54,7 +55,7 @@ export default function RootLayout({children}) {
     </head>
     <body>
       <script type="application/ld+json" dangerouslySetInnerHTML={{__html:JSON.stringify(websiteSchema).replace(/</g,'\\u003c')}}/>
-      <ServiceWorkerRegister/>{children}
+      <ServiceWorkerRegister/>{children}<AnalyticsConsent/>
     </body>
   </html>;
 }
