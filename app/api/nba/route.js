@@ -71,6 +71,7 @@ async function game(id) {
   const data=await request(ROOT+'/summary?event='+id,5);
   return {
     id,
+    start:data.header?.competitions?.[0]?.date||data.header?.competitions?.[0]?.startDate||data.header?.date||null,
     winProbability:sourceWinProbability(data),
     players:(data.boxscore?.players || []).map(group => {
       const block=group.statistics?.[0] || {};
