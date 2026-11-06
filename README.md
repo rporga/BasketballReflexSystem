@@ -85,12 +85,23 @@ The app launches in standalone mode on supported devices. Only static shell file
 
 The vector artwork lives in `public/app-icon.svg`. `scripts/generate-pwa-icons.mjs` regenerates all PNG sizes with Sharp. The `Generate PWA app icons` GitHub workflow runs when the vector or generator changes and commits the generated PNG files.
 
-## Dime: AI basketball assistant
+## Dime: OpenAI-powered basketball assistant
 
-Use the floating **Ask Dime** button anywhere in the application. Dime is a conversational LLM assistant that knows the selected game, matchup or player and uses read-only server-side tools to fetch the relevant NBA scoreboard, quarter trends, team rosters, player statistics and injury-aware scouting calculations.
+Dime is an embedded LLM assistant on every Pick & Roll tab. It reads the selected game, teams or player from the page and invokes **read-only NBA data tools** for live scores, game boxscores, roster details, quarter trends, injury reports and the existing experimental prediction model. The character artwork is the same mascot supplied by the owner, used in the floating button and chat.
 
-The implementation uses **Vercel AI SDK v6** and **Vercel AI Gateway** with model `openai/gpt-5.4-mini`. No provider key is exposed in client-side code. Vercel OIDC authentication is resolved at runtime; **AI Gateway billing verification is required on the Vercel team before LLM generations can run**. Go to your Vercel team **AI Gateway** dashboard, activate the required payment method and set a budget appropriate for public access. Until billing verification is completed, Dime displays a setup message instead of inventing AI responses.
+Dime now talks **directly to the OpenAI API**, not Vercel AI Gateway. It uses the Vercel AI SDK v6 and `@ai-sdk/openai` provider for the `gpt-5.4-mini` model, with the OpenAI Responses API and `store: false`. Vercel remains the web host, but does not act as the LLM gateway.
 
-Dime has a per-instance hourly request safeguard, input length limits, bounded model output, and tool validation. Those safeguards are not a distributed production-grade rate limiter; add a shared rate-limit store, auth, analytics and budget alerts before scaling the publicly accessible chat.
+### Activate the OpenAI API
 
-Dime never independently claims to be a calibrated prediction model. NBA matchup percentages remain heuristic, and injury availability and data freshness depend on the upstream provider.
+1. Sign in to [OpenAI Platform](https://platform.openai.com/) with your account, set up API billing and create a **project-scoped secret API key** from [API keys](https://platform.openai.com/api-keys). This is separately billed from a ChatGPT Plus/Pro subscription.
+2. In **Vercel → basketballreflexsystem → Settings → Environment Variables**, create **`OPENAI_API_KEY`** with the secret value. Select **Encrypted/Sensitive** and at least the **Production** environment (and Preview/Development if needed). **Never paste it into GitHub, the chat, frontend code, or browser local storage.**
+3. Redeploy the project's latest `main` deployment so its server functions receive the new environment variable.
+4. Test the floating **Ask Dime** button in Live Games and Matchup Lab. For a focused smoke test, use `node scripts/test-dime.mjs` in a secure environment with access to the public production site.
+
+Without a key, the Dime API deliberately returns a clear **503: not activated** message. It does not hallucinate an LLM response or leak credentials. With invalid credentials or exhausted API balance, the error message points to OpenAI Platform rather than Vercel AI Gateway.
+
+### Personal beta safeguards
+
+Dime accepts short messages, restricts tool parameters, limits generated output, and applies an **in-memory per-IP hourly throttle** in the server. This protects against casual overuse **but is not a hard or distributed spending limit** on serverless hosts. For public testing, configure OpenAI project budgets/alerts, monitor usage, and consider adding a shared database-backed rate limiter and authentication if more visitors join. Only public NBA data and the user's basketball question/context are passed to the model; don't submit private information.
+
+The existing matchup probabilities are historical, uncalibrated heuristics, **not** live in-game win probabilities, calibrated odds or betting advice. Injury estimates may be unavailable or stale. Dime is instructed to check its tools rather than invent statistics.
