@@ -4,9 +4,9 @@ import {useEffect,useRef,useState} from 'react';
 import {dimeAvatar} from './dime-avatar';
 
 const QUICK=[
-  'What stands out in this matchup?',
-  'Compare the third and fourth quarters.',
-  'How do injuries affect the prediction?'
+  "Who is on the floor right now?",
+  "Which substitution could change this matchup?",
+  "How do injuries and rotations affect the prediction?"
 ];
 function textOnly(value){return typeof value==='string'?value.trim():'';}
 function time(){return new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
