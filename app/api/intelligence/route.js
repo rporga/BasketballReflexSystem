@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { parseGamelog, aggregate } from '../../../lib/prop-analytics.js';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -40,8 +41,15 @@ function scoreboardLine(board,gameInfo,teamId) {
   const extract=c=>[1,2,3,4].map(q=>n(c.linescores.find(l=>Number(l.period)===q)?.value));
   const q=extract(own),opp=extract(other);
   if(q.some(v=>v===null)||opp.some(v=>v===null))return null;
-  const sf=q.reduce((a,b)=>a+b,0),sa=opp.reduce((a,b)=>a+b,0);
-  return {...gameInfo,for:q,against:opp,scored:sf,allowed:sa,won:sf>sa, margin:sf-sa,firstHalf:q[0]+q[1]-(opp[0]+opp[1]),secondHalf:q[2]+q[3]-(opp[2]+opp[3])};
+  const regulationFor=q.reduce((a,b)=>a+b,0),regulationAgainst=opp.reduce((a,b)=>a+b,0);
+  // Quarter analysis uses regulation periods; win and net margin must use official FINAL scores (including OT).
+  const finalFor=n(own.score),finalAgainst=n(other.score);
+  if(finalFor===null||finalAgainst===null)return null;
+  const overtime=finalFor!==regulationFor||finalAgainst!==regulationAgainst;
+  return {...gameInfo,for:q,against:opp,scored:finalFor,allowed:finalAgainst,
+    regulationFor,regulationAgainst,overtime,otFor:finalFor-regulationFor,otAgainst:finalAgainst-regulationAgainst,
+    won:finalFor>finalAgainst,margin:finalFor-finalAgainst,
+    firstHalf:q[0]+q[1]-(opp[0]+opp[1]),secondHalf:q[2]+q[3]-(opp[2]+opp[3])};
 }
 async function recentGames(teamId) {
   const schedule=await get(ESPN+'/teams/'+teamId+'/schedule?seasontype=2',300);
@@ -109,15 +117,18 @@ function normalizedInjuries(raw,teamId) {
     detail:text(i.shortComment),date:text(i.date),injury:text(i.type?.description || i.details?.type || '')
   })).filter(i=>i.name);
 }
-async function playerPPG(id) {
+async function playerForm(id) {
   if(!/^\d{1,12}$/.test(id))return null;
   try {
-    const body=await get(ATHLETE+'/athletes/'+id+'/stats?season='+seasonYear()+'&seasontype=2',900);
-    const averages=body.categories?.find(x=>x.name==='averages');
-    const index=averages?.labels?.findIndex(x=>x==='PTS');
-    if(index==null||index<0)return null;
-    const ppg=n(averages?.totals?.[index]);
-    return ppg!=null&&ppg>=0&&ppg<=50?ppg:null;
+    const year=seasonYear();
+    const body=await get(ATHLETE+'/athletes/'+id+'/gamelog?season='+year+'&seasontype=2',900);
+    const games=parseGamelog(body,year);
+    if(games.length<2)return null;
+    const ppg=aggregate(games,'PTS',52).mean;
+    const minutes=aggregate(games,'MIN',52).mean;
+    // Season-restricted game logs only. Never substitute career-level totals.
+    if(ppg==null||minutes==null||minutes<=0)return null;
+    return {ppg,minutes,latestPlayed:games[0].date,gameCount:games.length};
   } catch {return null;}
 }
 const relevance={out:1,doubtful:.8,questionable:.4,daytoday:.35,probable:.1};
@@ -126,13 +137,24 @@ async function injuryReport(raw,id) {
   const current=entries.filter(x=>relevance[statusKey(x.status)]!==undefined);
   const scored=await Promise.all(current.slice(0,12).map(async x=>{
     const hrs=x.date?(Date.now()-new Date(x.date).getTime())/HOURS:null;
-    const fresh=hrs!==null&&hrs>=-6&&hrs<=72;
-    const ppg=await playerPPG(x.id);
+    const form=await playerForm(x.id);
+    const ppg=form?.ppg??null;
     const weight=relevance[statusKey(x.status)] || 0;
-    // Approximation only: not a measured on/off effect or lineup model.
-    const includedInEstimate=fresh&&ppg!==null&&weight>0;
-    const adjustment=includedInEstimate?Math.min(3.5,ppg*.20*weight):null;
-    return {...x,ppg,reportAgeHours:hrs===null?null:round(hrs),includedInEstimate,estimatedPoints:adjustment===null?null:round(adjustment,2)};
+    const recordedAt=x.date?Date.parse(x.date):NaN;
+    const lastPlayed=form?.latestPlayed?Date.parse(form.latestPlayed):NaN;
+    // A player who has appeared since the reported injury should not be subtracted.
+    const superseded=Number.isFinite(recordedAt)&&Number.isFinite(lastPlayed)&&lastPlayed>recordedAt+6*HOURS;
+    // Still-listed OUT players remain relevant after 72 hours; recheck game log for returns.
+    // Questionable/probable statuses must be recently updated.
+    const stillOut=statusKey(x.status)==='out'&&hrs!==null&&hrs>=-6;
+    const fresh=hrs!==null&&hrs>=-6&&hrs<=72;
+    const validStatus=(stillOut||fresh)&&!superseded;
+    const includedInEstimate=validStatus&&form!==null&&weight>0;
+    // Estimated impact has a minutes component and is capped; this is not a causal on/off value.
+    const availability=Math.min(1,Math.max(0,(form?.minutes??0)/30));
+    const adjustment=includedInEstimate?Math.min(3.5,ppg*.20*weight*availability):null;
+    return {...x,ppg,seasonGames:form?.gameCount??0,reportAgeHours:hrs===null?null:round(hrs),
+      superseded,includedInEstimate,estimatedPoints:adjustment===null?null:round(adjustment,2)};
   }));
   const scoredNames=new Set(scored.map(x=>x.name));
   const unscored=entries.filter(x=>!scoredNames.has(x.name)).map(x=>({...x,ppg:null,estimatedPoints:null,includedInEstimate:false,reportAgeHours:null}));
@@ -140,7 +162,7 @@ async function injuryReport(raw,id) {
   const quantified=scored.filter(x=>x.includedInEstimate).length;
   const unknown=scored.filter(x=>!x.includedInEstimate).length;
   return {players,reportCount:players.length,quantified,unquantified:unknown,
-    totalAdjustment:quantified===0&&current.length>0?null:round(Math.min(7,scored.reduce((acc,x)=>acc+(x.estimatedPoints??0),0)),2),reportSource:'ESPN public injuries',assumption:'Status weights: Out 100%, Doubtful 80%, Questionable 40%, Day-to-day 35%, Probable 10%; uses 20% of player season PPG (max 3.5 points per player, 7 total). Only reports updated within 72 hours with available season PPG are quantified. This is a heuristic, not a measured on/off model.'};
+    totalAdjustment:quantified===0&&current.length>0?null:round(Math.min(7,scored.reduce((acc,x)=>acc+(x.estimatedPoints??0),0)),2),reportSource:'ESPN public injuries',assumption:'Status weights: Out 100%, Doubtful 80%, Questionable 40%, Day-to-day 35%, Probable 10%; uses 20% of player season PPG (max 3.5 points per player, 7 total). Long-term OUT statuses stay eligible unless game logs show the player returned; other statuses require updates within 72 hours. Current-season game logs and minutes are required. This is a heuristic, not a measured on/off model.'};
 }
 function probability(h,a,hi,ai) {
   if(!h||!a)return null;
