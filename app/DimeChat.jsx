@@ -2,6 +2,7 @@
 
 import {useEffect,useRef,useState} from 'react';
 import {dimeAvatar} from './dime-avatar';
+import {trackEvent} from '../lib/analytics.js';
 
 const QUICK=[
   "Who is on the floor right now?",
@@ -27,6 +28,7 @@ export default function DimeChat({context}){
     const message=textOnly(proposed??draft);
     if(!message||busy)return;
     if(message.length>850){setError('Please use 850 characters or fewer.');return;}
+    trackEvent('dime_question_sent',{context:context?.tab||'games'});
     const next=[...messages.filter(m=>m.content&&['user','assistant'].includes(m.role)),{role:'user',content:message,at:time()}];
     setMessages([...next,{role:'assistant',content:'',at:time(),streaming:true}]);
     setDraft('');
@@ -56,10 +58,12 @@ export default function DimeChat({context}){
       result+=decoder.decode();
       if(!result.trim())throw new Error('Dime returned an empty response. Try again.');
       setMessages([...next,{role:'assistant',content:result,at:time()}]);
+      trackEvent('dime_answer_received',{context:context?.tab||'games'});
     }catch(e){
       if(e.name!=='AbortError'){
         setMessages(next);
         setError(e.message||'Unable to connect to Dime.');
+        trackEvent('dime_answer_failed',{context:context?.tab||'games',result_status:'error'});
       }
     }finally{
       setBusy(false);
@@ -74,7 +78,7 @@ export default function DimeChat({context}){
     setDraft('');
   }
   return <>
-    <button className={'dime-launcher '+(open?'is-open':'')} onClick={()=>setOpen(!open)} aria-label={open?'Close Dime assistant':'Ask Dime AI'} aria-expanded={open} aria-controls="dime-panel">
+    <button className={'dime-launcher '+(open?'is-open':'')} onClick={()=>{if(!open)trackEvent('dime_opened',{context:context?.tab||'games'});setOpen(!open);}} aria-label={open?'Close Dime assistant':'Ask Dime AI'} aria-expanded={open} aria-controls="dime-panel">
       <span className="dime-launcher-icon"><img src={dimeAvatar} alt="" width="36" height="36" /></span>
       <span>{open?'Close Dime':'Ask Dime'}</span>
       <span className="dime-launcher-arrow">{open?'×':'↗'}</span>
