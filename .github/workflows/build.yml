@@ -39,3 +39,6 @@ jobs:
 
       - name: Validate live score and game-clock win estimate
         run: node scripts/test-live-win-model.mjs
+
+      - name: Validate ESPN player game logs
+        run: node scripts/check-player-props-source.mjs
