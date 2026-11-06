@@ -70,13 +70,18 @@ function reconstruct(report,teamId){
   }
   const rawActive=members.filter(p=>p.active&&!p.didNotPlay).map(p=>p.id);
   const fromActive=rawActive.length===5&&rawActive.every(p=>rosterMap.has(p));
-  // ESPN's active flag isn't a verified real-time tracking feed. Prefer documented PBP reconstruction.
-  const consistent=active.length===5&&unique(active).length===5&&errors<=2;
-  const source=consistent?'play-by-play reconstructed':fromActive?'boxscore active field':'unverified';
+  const periods=new Set(sorted.map(p=>Number(p.period?.number)).filter(Number.isFinite));
+  const periodBoundary=periods.size>1||[...periods].some(p=>p>1);
+  const consistent=active.length===5&&unique(active).length===5&&errors===0&&transitions.length>0;
+  // Quarter breaks are a hard evidence boundary: a new five can begin without a substitution event.
+  // 'active' is not a verified on-floor flag; it must never be described as a confirmed live five.
+  const confidence=consistent&&!periodBoundary?'moderate':'low';
+  const source=consistent?'play-by-play estimate':fromActive?'boxscore active estimate':'unverified starter fallback';
   const ids=consistent?active:fromActive?rawActive:starters;
-  return {ids,type:source,lastEvents:transitions.slice(-8).reverse(),warnings:[
-    ...(errors?[errors+' substitution events were inconsistent with tracked lineup']:[]),
-    ...(source!=='play-by-play reconstructed'?['Lineup could not be fully reconstructed from substitutions']:[])
+  return {ids,type:source,confidence,lastEvents:transitions.slice(-8).reverse(),warnings:[
+    ...(periodBoundary?['On-court five may change at quarter breaks without recorded substitution events']:[]),
+    ...(errors?[errors+' substitution events did not reconcile with tracked lineup']:[]),
+    ...(source!=='play-by-play estimate'?['Live five could not be reconstructed from complete substitution history']:[])
   ]};
 }
 function teamBox(teamId,roster,latest,liveReport,injuries){
@@ -103,22 +108,28 @@ function teamBox(teamId,roster,latest,liveReport,injuries){
       gamePoints:game?.row?.pts??null,starter:game?.starter||false,
       injury:reported||null};
   }).sort((a,b)=>(b.profile.minutes||0)-(a.profile.minutes||0));
-  let source='recent boxscore starter five',warnings=[],events=[];
+  let source='latest completed game starters',warnings=[],events=[],confidence='low';
   let onIds=latest.map(r=>startersFrom(r,teamId)).find(g=>g.length===5)||[];
   if(liveReport){
-    const rec=reconstruct(liveReport,teamId);
-    if(rec.ids.length===5){
-      onIds=rec.ids;source=rec.type;events=rec.lastEvents;warnings=rec.warnings;
+    const status=liveReport.header?.competitions?.[0]?.status?.type?.state;
+    if(status==='post'){
+      const starters=startersFrom(liveReport,teamId);
+      if(starters.length===5){onIds=starters;source='confirmed game starters';confidence='high';}
+    }else if(status==='in'){
+      const rec=reconstruct(liveReport,teamId);
+      if(rec.ids.length===5){
+        onIds=rec.ids;source=rec.type;events=rec.lastEvents;warnings=rec.warnings;confidence=rec.confidence;
+      }
     }
   }
   if(onIds.length!==5) {
     onIds=players.filter(p=>p.profile.minutes>0).slice(0,5).map(p=>p.id);
-    source='estimated from recent minutes';
+    source='estimated from recent minutes';confidence='low';
   }
   const onCourt=onIds.map(athleteId=>players.find(p=>p.id===athleteId)).filter(Boolean);
   const onSet=new Set(onCourt.map(p=>p.id));
   return {id:teamId,name:val(roster?.team?.displayName),onCourt,bench:players.filter(p=>!onSet.has(p.id)),
-    players,source,events,warnings,gameSample:latest.length,
+    players,source,confidence,events,warnings,gameSample:latest.length,
     latestStarters:latest.map(r=>startersFrom(r,teamId)).find(g=>g.length===5)||[]};
 }
 async function collect(home,away,gameId){
@@ -135,15 +146,18 @@ async function collect(home,away,gameId){
   const status=comp.status?.type?.state||'pre';
   const homeComp=comp.competitors?.find(x=>id(x.team?.id)===home);
   const awayComp=comp.competitors?.find(x=>id(x.team?.id)===away);
+  const scoreValue=c=>{
+    const v=c?.score?.value??c?.score?.displayValue??c?.score;
+    return v===null||v===undefined||v===''||!Number.isFinite(Number(v))?null:Number(v);
+  };
   const game=gameId?{id:gameId,status,period:Number(comp.status?.period)||0,clock:val(comp.status?.displayClock),
-    homeScore:Number(homeComp?.score?.value??homeComp?.score??source?.header?.competitions?.[0]?.competitors?.find(x=>id(x.team?.id)===home)?.score??0),
-    awayScore:Number(awayComp?.score?.value??awayComp?.score??0)}:null;
+    homeScore:scoreValue(homeComp),awayScore:scoreValue(awayComp)}:null;
   return {teams:{home:H,away:A},game,fetchedAt:new Date().toISOString(),
     dataQuality:{roster:true,recentGames:{home:H.gameSample,away:A.gameSample},
       gameSummary:!!source,
       injuryReport:!!reportInj,
       source:'ESPN public unofficial NBA rosters, play-by-play and recent game boxscores'},
-    methodology:'Starting fives come from the selected game boxscore or last completed game, not a verified future lineup. Live on-court combinations are reconstructed from substitutions, which may be incomplete at quarter breaks. Full roster includes DNP/unknown-availability players. Player production is an average of up to five recent completed regular-season game boxscores.'};
+    methodology:'Starting fives come from the selected game boxscore or last completed game, not a verified future lineup. Live on-court combinations are estimates inferred from substitutions; quarter breaks can invalidate their continuity. Full roster includes DNP/unknown-availability players. Player production is an average of up to five recent completed regular-season game boxscores.'};
 }
 const fail=(message,status)=>NextResponse.json({error:message},{status,headers:{'Cache-Control':'no-store'}});
 export async function GET(request){
