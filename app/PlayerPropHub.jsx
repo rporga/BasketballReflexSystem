@@ -3,7 +3,8 @@
 import {useEffect,useMemo,useState} from 'react';
 import {PROP_DEFS,aggregate,shooting,forecast,comparison,decimalOdds} from '../lib/prop-analytics.js';
 
-const STORAGE='pick-roll-parlay-v1';
+const STORAGE='pick-roll-parlay-v2';
+const LEGACY_STORAGE='pick-roll-parlay-v1';
 const CORE=['PTS','REB','AST','3PM','PRA','PR','PA','RA','STL','BLK','STOCKS'];
 const show=(v,d=1)=>v==null||!Number.isFinite(Number(v))?'—':Number(v).toFixed(d);
 const pct=v=>v==null?'—':show(v,0)+'%';
@@ -114,10 +115,13 @@ function Insights({data,games,prop,team}){
  </div>;
 }
 function ParlayBuilder({legs,setLegs,clearStatus}){
+ const [quotedOdds,setQuotedOdds]=useState('');
+ const [quotedFormat,setQuotedFormat]=useState('decimal');
  const evaluation=useMemo(()=>comparison(legs),[legs]);
  const allPriced=legs.length>0&&legs.every(l=>decimalOdds(l.odds,l.oddsFormat)!=null);
  const combinedDecimal=allPriced?legs.reduce((x,l)=>x*decimalOdds(l.odds,l.oddsFormat),1):null;
- const implied=combinedDecimal==null?null:100/combinedDecimal;
+ const quotedDecimal=decimalOdds(quotedOdds,quotedFormat);
+ const implied=quotedDecimal==null?null:100/quotedDecimal;
  function update(i,field,value){setLegs(prev=>prev.map((leg,n)=>i===n?{...leg,[field]:value}:leg));}
  const commonTarget=legs.length>=2&&legs[0].targetGameId&&legs.every(l=>l.targetGameId===legs[0].targetGameId);
  return <section className="parlay-builder" id="parlay-builder" aria-label="Parlay explorer">
@@ -131,12 +135,12 @@ function ParlayBuilder({legs,setLegs,clearStatus}){
        const hit=aggregate(l.games||[],l.prop,10,Number(l.line),l.side);
        return <div key={l.key} className="parlay-leg">
          <div className="parlay-leg-top"><span className="parlay-index">{String(i+1).padStart(2,'0')}</span>
-           <div className="parlay-leg-name"><strong>{l.name}</strong><span>{l.team} {l.opponent?'· '+l.opponent:''}</span></div>
+           <div className="parlay-leg-name"><strong>{l.name}</strong><span>{l.team} {l.opponent?'· '+l.opponent:''}{l.targetDate&&Date.now()>Date.parse(l.targetDate)+6*3600000?' · Past game':''}</span></div>
            <button type="button" className="parlay-remove" aria-label={'Remove '+l.name+' '+l.prop} onClick={()=>setLegs(prev=>prev.filter(x=>x.key!==l.key))}>×</button>
          </div>
          <div className="parlay-leg-stats">
            <strong>{l.prop} {l.side==='over'?'Over':'Under'} {l.line}</strong>
-           <span>{hit.sample?hit.hits+'/'+(hit.decisions??hit.sample)+' recent hits':'No sample'}</span>
+           <span>{l.refreshError?'Refresh unavailable':!Array.isArray(l.games)?'Updating game logs…':hit.sample?hit.hits+'/'+(hit.decisions??hit.sample)+' recent hits':'No recent games'}</span>
          </div>
          <div className="parlay-leg-pricing">
            <label>ODDS
@@ -153,9 +157,20 @@ function ParlayBuilder({legs,setLegs,clearStatus}){
        <div className="parlay-summary-top"><span>COMBINED BOARD</span>
          <button type="button" className="parlay-clear" onClick={()=>{setLegs([]);clearStatus?.();}}>Clear all</button></div>
        <div className="parlay-summary-grid">
-         <Stat label="COMBINED ODDS" value={combinedDecimal==null?'Add odds':show(combinedDecimal,2)+'×'}/>
-         <Stat label="BREAK-EVEN" value={implied==null?'—':pct(implied)} hint="from entered prices"/>
-         <Stat label="INDEPENDENT REFERENCE" value={evaluation.independentReference==null?'—':pct(evaluation.independentReference)} hint="past L10 hit rates"/>
+         <Stat label="THEORETICAL ODDS" value={combinedDecimal==null?'Add leg odds':show(combinedDecimal,2)+'×'} hint="product of leg prices"/>
+         <Stat label="QUOTED BREAK-EVEN" value={implied==null?'Enter quote':pct(implied)} hint="actual parlay price"/>
+         <Stat label="HISTORICAL REFERENCE" value={evaluation.independentReference==null?'—':pct(evaluation.independentReference)} hint="independence assumption"/>
+       </div>
+       <div className="parlay-quoted-input">
+         <label>ACTUAL PARLAY QUOTE
+           <input type="number" step="any" inputMode="decimal" value={quotedOdds} placeholder={quotedFormat==='american'?'+500':'6.00'} onChange={e=>setQuotedOdds(e.target.value)}/>
+         </label>
+         <label>FORMAT
+           <select value={quotedFormat} onChange={e=>{setQuotedFormat(e.target.value);setQuotedOdds('');}}>
+             <option value="decimal">Decimal</option><option value="american">American</option>
+           </select>
+         </label>
+         <span>{quotedDecimal!=null&&combinedDecimal!=null?'Quoted: '+show(quotedDecimal,2)+'× · Uncorrelated product: '+show(combinedDecimal,2)+'×':'Compare a real quote with the leg-price product.'}</span>
        </div>
        {commonTarget&&evaluation.coHits?<div className="parlay-cohit"><span>HISTORICAL JOINT HIT</span>
          <strong>{evaluation.coHits.count} / {evaluation.coHits.n} shared games</strong>
@@ -164,7 +179,7 @@ function ParlayBuilder({legs,setLegs,clearStatus}){
          {evaluation.pairs.map(p=><div key={p.a+'-'+p.b}><strong>{legs[p.a].name.split(' ').slice(-1)} × {legs[p.b].name.split(' ').slice(-1)}</strong>
            <span>{p.r==null?'—':(p.r>0?'+':'')+show(p.r,2)} · {p.n} shared G</span></div>)}</div>}
        {legs.length>=2&&!evaluation.pairs.length&&<p className="prop-soft-note">No shared-game sample large enough to measure player correlation.</p>}
-       <p className="prop-footnote">Historical hit rates and the independent reference aren't calibrated future probabilities. Entered odds are manual and are not live sportsbook prices.</p>
+       <p className="prop-footnote">Historical results are not future probabilities. Leg-price products are not sportsbook parlay quotes.</p>
      </div>
    </>}
  </section>;
@@ -180,11 +195,42 @@ export default function PlayerPropHub({player,team,feed}){
  const games=d?.games||[];
  const count=games.length;
  useEffect(()=>{try{
-  const raw=window.localStorage.getItem(STORAGE);if(raw){
-   const obj=JSON.parse(raw);if(Array.isArray(obj))setLegs(obj.filter(l=>l&&l.key&&PROP_DEFS[l.prop]&&Array.isArray(l.games)).slice(0,8));
-  }
+   const raw=window.localStorage.getItem(STORAGE)||window.localStorage.getItem(LEGACY_STORAGE);
+   if(raw){
+     const saved=JSON.parse(raw);
+     if(Array.isArray(saved))setLegs(saved.filter(l=>l&&l.key&&PROP_DEFS[l.prop]&&/^\\d{1,12}$/.test(String(l.playerId||'')))
+       .slice(0,8).map(l=>({...l,games:undefined,refreshError:false})));
+   }
  }catch{}setLoaded(true);},[]);
- useEffect(()=>{if(loaded){try{window.localStorage.setItem(STORAGE,JSON.stringify(legs));}catch{}}},[legs,loaded]);
+ // Store selections only. Cached stats are not persisted and are refreshed from the server.
+ useEffect(()=>{if(loaded){try{
+   window.localStorage.setItem(STORAGE,JSON.stringify(legs.map(({games,refreshError,...selection})=>selection)));
+   window.localStorage.removeItem(LEGACY_STORAGE);
+ }catch{}}},[legs,loaded]);
+ const pendingIds=[...new Set(legs.filter(l=>!Array.isArray(l.games)&&!l.refreshError).map(l=>String(l.playerId)))].filter(id=>/^\\d{1,12}$/.test(id));
+ const pendingKey=pendingIds.join(',');
+ useEffect(()=>{
+   if(!loaded||!pendingKey)return;
+   const controller=new AbortController();
+   Promise.allSettled(pendingKey.split(',').map(async id=>{
+     const resp=await fetch('/api/props?player='+encodeURIComponent(id),{signal:controller.signal,cache:'no-store'});
+     if(!resp.ok)throw Error('game log unavailable');
+     const data=await resp.json();
+     if(String(data.playerId)!==id||!Array.isArray(data.games))throw Error('invalid player data');
+     return {id,games:data.games.slice(0,52).map(g=>({id:g.id,date:g.date,stats:g.stats})),updatedAt:data.fetchedAt};
+   })).then(results=>{
+     if(controller.signal.aborted)return;
+     const updates=new Map(pendingKey.split(',').map((id,i)=>[id,results[i]]));
+     setLegs(prev=>prev.map(l=>{
+       const result=updates.get(String(l.playerId));
+       if(!result||Array.isArray(l.games)||l.refreshError)return l;
+       return result.status==='fulfilled'
+         ?{...l,games:result.value.games,refreshedAt:result.value.updatedAt}
+         :{...l,games:[],refreshError:true};
+     }));
+   });
+   return ()=>controller.abort();
+ },[loaded,pendingKey]);
  useEffect(()=>{setLine('');setMessage('');setOdds('');},[player?.id,prop]);
  useEffect(()=>{
   if(d&&line===''){
