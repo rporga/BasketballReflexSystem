@@ -1,0 +1,143 @@
+'use client';
+import {useEffect,useMemo,useState} from 'react';
+import {evaluateRotation} from '../lib/rotation-analytics.js';
+
+const num=(v,d=1)=>v==null?'—':Number(v).toFixed(d);
+const delta=v=>v>0?'+':'';
+function Person({p,changed}){
+  const f=p?.profile||{};
+  return <div className={'rotation-person '+(changed?'rotation-changed':'')}>
+    <div className="rotation-photo">{p?.headshot?<img src={p.headshot} alt="" loading="lazy"/>:<span>{p?.jersey||'•'}</span>}</div>
+    <div className="rotation-pname"><strong>{p?.name||'Unknown'}</strong>
+      <span>{p?.position||'—'} · {f.sample?f.sample+' games · '+num(f.minutes)+' MIN':'No recent game sample'}{p?.injury?.status?' · '+p.injury.status:''}</span>
+    </div>
+    <div className="rotation-pstat"><b>{num(f.pts)}</b><small>PTS</small></div>
+    <div className="rotation-pstat"><b>{num(f.ast)}</b><small>AST</small></div>
+  </div>;
+}
+function Squad({team,ids}){
+  const starters=new Set(team.onCourt.map(p=>p.id)),byId=new Map(team.players.map(p=>[p.id,p]));
+  return <div className="rotation-squad">
+    <div className="rotation-squad-head"><div><span className="intel-kicker">FIVE ON FLOOR / SIMULATED</span><h3>{team.name||'Team'}</h3></div>
+      <span className="rotation-source">{team.source}</span></div>
+    {ids.map(id=><Person key={id} p={byId.get(id)} changed={!starters.has(id)}/>)}
+    <details className="rotation-roster"><summary>Full Roster <span>{team.players.length} Players</span></summary>
+      <div>{team.players.map(p=><div className="rotation-roster-row" key={p.id}>
+        <span>{p.name}{p.injury?.status?' · '+p.injury.status:''}</span>
+        <b>{p.profile.sample?num(p.profile.pts)+' PPG / '+num(p.profile.minutes)+' MPG':'Recent stats unavailable'}</b>
+      </div>)}</div></details>
+  </div>;
+}
+export default function RotationLab({mode,data,loading,error,onRefresh,prior}){
+  const [homeFive,setHomeFive]=useState([]);
+  const [awayFive,setAwayFive]=useState([]);
+  const [side,setSide]=useState('home');
+  const [outId,setOutId]=useState('');
+  const [inId,setInId]=useState('');
+  const [attackerId,setAttackerId]=useState('');
+  const [defenderId,setDefenderId]=useState('');
+  const [history,setHistory]=useState([]);
+  const home=data?.teams?.home,away=data?.teams?.away;
+  const key=(home?.id||'')+'|'+(away?.id||'')+'|'+(data?.game?.id||'pregame');
+  const baseH=home?.onCourt?.map(p=>p.id)||[],baseA=away?.onCourt?.map(p=>p.id)||[];
+  const H=homeFive.length===5?homeFive:baseH,A=awayFive.length===5?awayFive:baseA;
+  const current=side==='home'?H:A;
+  const selected=side==='home'?home:away;
+  const bench=selected?.players?.filter(p=>!current.includes(p.id))||[];
+  const currentPlayers=selected?.players?.filter(p=>current.includes(p.id))||[];
+  const all=[...(home?.players||[]).filter(p=>H.includes(p.id)).map(p=>({...p,side:'home'})),
+    ...(away?.players||[]).filter(p=>A.includes(p.id)).map(p=>({...p,side:'away'}))];
+  const attacker=all.find(p=>p.id===attackerId);
+  const opposing=attacker?all.filter(p=>p.side!==attacker.side):[];
+  const evaluation=useMemo(()=>data?evaluateRotation(data,{homeIds:H,awayIds:A,attackerId,defenderId,priorHomeWin:prior}):null,[data,homeFive,awayFive,attackerId,defenderId,prior]);
+  const labels=new Map([...(home?.players||[]),...(away?.players||[])].map(p=>[p.id,p.name]));
+
+  useEffect(()=>{setHomeFive([]);setAwayFive([]);setSide('home');setOutId('');setInId('');
+    setAttackerId('');setDefenderId('');setHistory([]);},[key]);
+  useEffect(()=>{
+    if(!current.includes(outId))setOutId('');
+    if(!bench.some(p=>p.id===inId))setInId('');
+  },[side,homeFive,awayFive,data?.fetchedAt]);
+  useEffect(()=>{
+    if(!all.some(p=>p.id===attackerId)){setAttackerId('');setDefenderId('');}
+    else if(!opposing.some(p=>p.id===defenderId))setDefenderId('');
+  },[homeFive,awayFive,data?.fetchedAt]);
+  function substitute(){
+    if(!outId||!inId||!current.includes(outId)||!bench.some(p=>p.id===inId))return;
+    const updated=current.map(id=>id===outId?inId:id);
+    if(side==='home')setHomeFive(updated);else setAwayFive(updated);
+    setHistory(items=>items.concat([{side,out:labels.get(outId),in:labels.get(inId)}]));
+    setOutId('');setInId('');
+  }
+  const reset=()=>{setHomeFive([]);setAwayFive([]);setOutId('');setInId('');setAttackerId('');setDefenderId('');setHistory([]);};
+  const changed=history.length||attackerId||defenderId;
+  if(!home||!away)return <section className="rotation-section">
+    <div className="rotation-heading"><div><span className="intel-kicker">LINEUP INTELLIGENCE</span><h2>Rotation Simulator</h2></div></div>
+    <div className="intel-surface"><p className="intel-muted">{loading?'Loading starters, team rosters and recent boxscores…':error||'Select a game or two teams to explore rotations.'}</p>
+      {error&&<button className="intel-refresh" onClick={onRefresh}>Retry ↻</button>}</div>
+  </section>;
+  return <section className="rotation-section" aria-label="Full roster rotations and matchup scenarios">
+    <div className="rotation-heading"><div><span className="intel-kicker">FULL ROSTER INTELLIGENCE</span>
+      <h2>{mode==='games'?'Live Matchup Engine':'Rotation Simulator'}</h2></div>
+      <button className="intel-refresh" onClick={onRefresh}>Update lineups ↻</button></div>
+    <div className="rotation-context">
+      <span className="rotation-badge">{data.game?.status==='in'?'LIVE · EXPERIMENTAL':data.game?.status==='post'?'FINAL GAME DATA':'RECENT STARTING FIVES'}</span>
+      <span>Recent form: {home.gameSample} / {away.gameSample} games</span>
+    </div>
+    <div className="rotation-squads"><Squad team={away} ids={A}/><Squad team={home} ids={H}/></div>
+    {(home.warnings?.length||away.warnings?.length)?<p className="rotation-warning">{[...(home.warnings||[]),...(away.warnings||[])].join(' · ')}</p>:null}
+    {!!(home.events?.length||away.events?.length)&&<details className="rotation-events"><summary>Recent substitutions from play-by-play</summary>
+      {[...(home.events||[]).map(e=>({...e,team:home.name})),...(away.events||[]).map(e=>({...e,team:away.name}))].slice(0,8)
+        .map((e,i)=><p key={i}><b>{e.team}</b> · Q{e.period} {e.clock}: {e.in} for {e.out}</p>)}</details>}
+    <div className="rotation-workspace">
+      <div className="rotation-heading"><div><span className="intel-kicker">WHAT IF?</span><h2>Scenario Builder</h2></div>
+        <button className="rotation-reset" onClick={reset} disabled={!changed}>Reset ↺</button></div>
+      <div className="rotation-controls">
+        <div className="rotation-control-card">
+          <h3><span>01</span> Substitution</h3>
+          <div className="rotation-side-switch">{[['away',away],['home',home]].map(([s,t])=><button key={s}
+            className={side===s?'active':''} onClick={()=>{setSide(s);setOutId('');setInId('');}}>{t.name}</button>)}</div>
+          <div className="rotation-fields"><label>SUB OUT<select value={outId} onChange={e=>setOutId(e.target.value)}>
+            <option value="">Choose on-court player</option>{currentPlayers.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+          </select></label><label>SUB IN<select value={inId} onChange={e=>setInId(e.target.value)}>
+            <option value="">Choose bench player</option>{bench.map(p=><option key={p.id} value={p.id}>{p.name}{p.injury?.status?' · '+p.injury.status:''}</option>)}
+          </select></label></div>
+          <button className="rotation-apply" disabled={!outId||!inId} onClick={substitute}>Test substitution <span>↗</span></button>
+          {!!history.length&&<div className="rotation-history">{history.map((x,i)=><p key={i}>#{i+1} · {x.out} → {x.in}</p>)}</div>}
+        </div>
+        <div className="rotation-control-card">
+          <h3><span>02</span> Defensive Matchup</h3>
+          <p className="rotation-usage">Try a primary defender assignment. This is a hypothesis, not observed possession-level tracking.</p>
+          <div className="rotation-fields"><label>ATTACKER<select value={attackerId}
+            onChange={e=>{setAttackerId(e.target.value);setDefenderId('');}}><option value="">Choose an offensive player</option>
+            {all.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+            <label>ASSIGNED DEFENDER<select value={defenderId} disabled={!attacker} onChange={e=>setDefenderId(e.target.value)}>
+              <option value="">Choose a defender</option>{opposing.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+            </select></label></div>
+          <p className="rotation-usage">Defensive impact uses recent steals, blocks and rebounds as a limited proxy. It does not measure who actually guarded whom.</p>
+        </div>
+      </div>
+      <div className="rotation-forecast">
+        <div className="rotation-forecast-top"><span className="intel-kicker">MATCHUP ESTIMATE</span><span className="rotation-badge">UNCALIBRATED</span></div>
+        {evaluation?.available?<><div className="rotation-forecast-values">
+          <div><small>{home.name}</small><strong>{num(evaluation.scenarioHome)}%</strong></div>
+          <div><small>{away.name}</small><strong>{num(evaluation.scenarioAway)}%</strong></div>
+        </div>
+        <div className="rotation-forecast-bar"><div style={{width:evaluation.scenarioHome+'%'}}/></div>
+        <div className="rotation-stat-grid">
+          <div><span>BASELINE HOME</span><strong>{num(evaluation.baselineHome)}%</strong></div>
+          <div><span>SIMULATED HOME</span><strong>{num(evaluation.scenarioHome)}%</strong></div>
+          <div><span>SCENARIO SHIFT</span><strong>{delta(evaluation.changeHome)}{num(evaluation.changeHome,2)} pp</strong></div>
+        </div>
+        {evaluation.defensiveMatchup&&<div className="rotation-assignment">
+          <b>{evaluation.defensiveMatchup.attacker} vs {evaluation.defensiveMatchup.defender}</b>
+          <p>Hypothetical scoring over 10 minutes: {num(evaluation.defensiveMatchup.expectedPoints10)} → {num(evaluation.defensiveMatchup.versusDefender10)} points.</p></div>}
+        <p className="rotation-usage">Player samples: {evaluation.samples.home}/5 and {evaluation.samples.away}/5.
+        {evaluation.baselineProvided?' Starting odds use the existing historical scouting model.':' No historical prior: 50/50 is used as a neutral starting assumption.'}
+        {evaluation.mode==='LIVE EXPLORATORY'?' The displayed baseline also considers the current score and time remaining.':''}</p>
+        </>:<p className="rotation-usage">{evaluation?.reason||'Not enough usable player data for a lineup estimate.'}</p>}
+        <p className="rotation-disclaimer">Exploratory only, not validated betting odds. Uses short-term player production proxies, not measured lineup chemistry, actual defender assignments, or a backtested possession model. Missing player statistics are unknown, not zero.</p>
+      </div>
+    </div>
+  </section>;
+}
