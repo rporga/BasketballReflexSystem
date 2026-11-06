@@ -3,6 +3,8 @@ on:
   push:
     paths:
       - '.github/workflows/test-dime.yml'
+      - 'scripts/test-dime.mjs'
+      - 'app/api/dime/route.js'
     branches: [main]
   workflow_dispatch:
 permissions:
