@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import {AnalyticsPreferencesButton} from '../AnalyticsConsent';
 
 export const metadata = {
   title: 'About the Model',
@@ -58,6 +59,11 @@ export default function AboutModel() {
     <section className="about-section about-bottom">
       <h2>About Pick &amp; Roll</h2>
       <p>An independent basketball intelligence project. NBA data is sourced from ESPN public feeds; Pick &amp; Roll is not affiliated with ESPN or the NBA. The site is for information and entertainment, not betting advice.</p>
+      <div className="about-privacy">
+        <h3>Privacy &amp; analytics</h3>
+        <p>With permission, Pick &amp; Roll uses Google Analytics to understand visits and which site features are used. We don't include Dime questions, conversations or manually entered odds in analytics events. You can decline or change your choice at any time.</p>
+        <AnalyticsPreferencesButton/>
+      </div>
       <Link className="about-return" href="/">Return to Pick &amp; Roll →</Link>
     </section>
   </main>;
