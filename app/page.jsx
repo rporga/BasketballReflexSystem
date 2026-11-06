@@ -4,6 +4,7 @@ import {useEffect,useState} from 'react';
 import IntelligencePanel from './IntelligencePanel';
 import DimeChat from './DimeChat';
 import ThemeToggle from './ThemeToggle';
+import BackToTop from './BackToTop';
 import RotationLab from './RotationLab';
 
 const POLL_LIVE=5000;
@@ -80,7 +81,7 @@ function GameCard({game,selected,click}) {
     <div className="game-card-foot">{game.venue || 'NBA GAME'}<span>VIEW DETAILS ↗</span></div>
   </button>;
 }
-function Boxscore({selected,feed}) {
+function Boxscore({selected,feed,compact=false}) {
   const [side,setSide]=useState('away');
   useEffect(()=>setSide('away'),[selected?.id]);
   if(!selected)return <div className="panel padded"><Notice>Select a game to see the full boxscore.</Notice></div>;
@@ -89,11 +90,13 @@ function Boxscore({selected,feed}) {
   const cols=['MIN','PTS','REB','AST','FG','3PT','STL','BLK','+/-'].filter(c=>group?.columns?.includes(c));
   if(!cols.length && group)cols.push(...group.columns.slice(0,8));
   const teamStat=feed.data?.teamStats?.find(x=>x.team?.id===team?.id);
-  return <section className="panel padded boxscore">
-    <div className="heading-row"><div><span className="eyebrow">GAME DETAILS</span><h2>{selected.away?.name} <span className="muted">at</span> {selected.home?.name}</h2></div><Badge status={selected.status} text={selected.statusName}/></div>
-    <div className="big-score"><div><Logo team={selected.away} size={56}/><strong>{selected.away?.name}</strong><b>{selected.away?.score ?? '—'}</b></div><span>@</span><div><Logo team={selected.home} size={56}/><strong>{selected.home?.name}</strong><b>{selected.home?.score ?? '—'}</b></div></div>
-    <div className="quarter-box"><div className="quarter-row table-head"><span>TEAM</span>{[1,2,3,4].map(q=><span key={q}>Q{q}</span>)}<span>TOTAL</span></div>{[selected.away,selected.home].map((t,i)=><div className="quarter-row" key={i}><b>{t?.abbreviation}</b>{[0,1,2,3].map(q=><span key={q}>{t?.linescores?.[q] ?? '—'}</span>)}<b>{t?.score ?? '—'}</b></div>)}</div>
-    <div className="separator"/>
+  return <section className={'panel padded boxscore '+(compact?'boxscore-compact':'')}>
+    <div className="heading-row"><div><span className="eyebrow">GAME DATA · BOX SCORE</span><h2>{compact?'Live Game Boxscore':selected.away?.name+' at '+selected.home?.name}</h2></div><Badge status={selected.status} text={selected.statusName}/></div>
+    {!compact&&<>
+      <div className="big-score"><div><Logo team={selected.away} size={56}/><strong>{selected.away?.name}</strong><b>{selected.away?.score ?? '—'}</b></div><span>@</span><div><Logo team={selected.home} size={56}/><strong>{selected.home?.name}</strong><b>{selected.home?.score ?? '—'}</b></div></div>
+      <div className="quarter-box"><div className="quarter-row table-head"><span>TEAM</span>{[1,2,3,4].map(q=><span key={q}>Q{q}</span>)}<span>TOTAL</span></div>{[selected.away,selected.home].map((t,i)=><div className="quarter-row" key={i}><b>{t?.abbreviation}</b>{[0,1,2,3].map(q=><span key={q}>{t?.linescores?.[q] ?? '—'}</span>)}<b>{t?.score ?? '—'}</b></div>)}</div>
+      <div className="separator"/>
+    </>}
     <div className="heading-row"><h3>Live player boxscore</h3><div className="segmented">{['away','home'].map(s=><button key={s} className={side===s?'active':''} onClick={()=>setSide(s)}>{selected[s]?.abbreviation}</button>)}</div></div>
     {feed.loading && <Notice>Loading player statistics…</Notice>}
     {feed.error && <Notice error retry={feed.refresh}>Couldn't load the player boxscore: {feed.error}</Notice>}
@@ -201,8 +204,9 @@ export default function Home() {
       {tab==='games'&&<Games date={date} setDate={setDate} score={scores} gameId={gameId} setGameId={setGameId}/>}
       <IntelligencePanel mode={tab} home={intelHome} away={intelAway} report={intelligence.data} loading={intelligence.loading} error={intelligence.error}
         onRefresh={intelligence.refresh} rotation={rotation.data} rotationLoading={rotation.loading}
+        game={tab==='games'?selectedGame:null} scoreboardFetchedAt={scores.data?.fetchedAt}
+        gameBoxscore={tab==='games'?<Boxscore selected={selectedGame} feed={detail} compact/>:null}
         player={selectedPlayer} playerStats={stats.data} playerLoading={stats.loading} playerError={stats.error}/>
-      {tab==='games'&&<Boxscore selected={selectedGame} feed={detail}/>}
       {tab==='teams'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}
         <Matchup teams={teams} home={home} setHome={setHome} away={away} setAway={setAway} first={formA} second={formB}/></>}
       {tab!=='players'&&<RotationLab key={rotationUrl||'rotation'} mode={tab} data={rotation.data} loading={rotation.loading}
@@ -218,6 +222,7 @@ export default function Home() {
         <span className="mobile-tab-label">{p.id==='games'?'Games':p.id==='teams'?'Matchups':'Players'}</span>
       </button>)}
     </nav>
+    <BackToTop/>
     <DimeChat context={{tab,gameId:tab==='games'?selectedGame?.id||'':'',homeId:intelHome?.id||'',awayId:intelAway?.id||'',teamId:teamId||'',playerId:tab==='players'?playerId||'':''}}/>
   </div>;
 }
