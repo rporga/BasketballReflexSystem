@@ -1,4 +1,8 @@
-# Basketball Reflex System
+# Pick & Roll
+
+*Understand the game. Anticipate what happens next.*
+
+Live NBA intelligence that connects player performance, matchups, rotations and statistical projections in one place.
 
 **A dynamic Next.js NBA intelligence website** backed by a server-side sports data adapter. The code is hosted on GitHub and designed to run on Vercel (or another Next.js-compatible server runtime). The previous hard-coded HTML prototype has been retired.
 
@@ -8,7 +12,7 @@
 - **Player Boxscores:** Current game player stat lines and team game stats where published.
 - **Matchup Lab:** Select any two NBA teams and compare recent completed regular-season results, last-five records, points scored/allowed and scoring differentials. These are observed statistics, **not** predicted outcomes.
 - **Player Explorer:** Browse active team rosters and request the selected player's season statistics. Data availability depends on the source.
-- **Updates automatically:** The scoreboard and selected game are requested every **30 seconds** while the page is open and visible. Less time-sensitive feeds refresh every five minutes. Server-side caching reduces load.
+- **Updates automatically:** The scoreboard and selected live game are requested approximately every **5 seconds** while the page is open and visible. Less time-sensitive feeds refresh every five minutes. Server-side caching reduces load.
 
 The interface **does not use fabricated stats**, subscriptions, or a simulated betting model. If the sports data provider fails, the UI displays a retryable error.
 
@@ -19,7 +23,7 @@ The interface **does not use fabricated stats**, subscriptions, or a simulated b
 - Source data: **ESPN's publicly accessible, unofficial JSON endpoints**
 - GitHub for source, GitHub Actions for CI, Vercel for optional hosting
 
-**Important:** ESPN's feeds are **undocumented and unofficial**. They can change, throttle requests or go offline. They are not guaranteed to be licensed for commercial redistribution or reuse. Before any public commercial launch, obtain permission or migrate to a licensed data supplier (such as BALLDONTLIE, Sportradar, or SportsDataIO). The site does not claim instantaneous provider updates; 30 seconds is its polling interval.
+**Important:** ESPN's feeds are **undocumented and unofficial**. They can change, throttle requests or go offline. They are not guaranteed to be licensed for commercial redistribution or reuse. Before any public commercial launch, obtain permission or migrate to a licensed data supplier (such as BALLDONTLIE, Sportradar, or SportsDataIO). The site does not claim instantaneous provider updates; the scoreboard is polled around every 5 seconds during live games, although actual updates depend on ESPN publication.
 
 ## Deploy the dynamic website
 
@@ -117,7 +121,7 @@ To simulate:
 
 The public server endpoint `GET /api/rotations?home=<teamId>&away=<teamId>[&game=<ESPNGameId>]` reports roster, projected or reconstructed five, substitution evidence and per-player sample sizes. For a single hypothetical substitution it accepts `side`, `out` and `in`, and optionally `attacker`, `defender`, `prior`; invalid substitutions and IDs are rejected server-side. All NBA data tools are **read-only**.
 
-The probabilistic scenario engine is in `lib/rotation-analytics.js`, with tests in `scripts/test-rotation-engine.mjs`. Its player role estimates use modest, arbitrary weights on recent boxscore stats, then apply a logistic adjustment to the scouting prior. During live games, a score-and-clock heuristic is also applied. **It has not been trained, calibrated, or backtested; it is not a reliable win-probability model or suitable for wagering.** Missing player data returns "not enough data" rather than a zero contribution. A recent starting five is not a confirmed upcoming lineup, and substitutions reconstructed from play-by-play can be incomplete near quarter breaks.
+The exploratory scenario engine is in `lib/rotation-analytics.js`, with tests in `scripts/test-rotation-engine.mjs`. Its player role estimates use modest, arbitrary weights on recent boxscore stats, then apply a logistic adjustment to the scouting prior. During live games, a score-and-clock heuristic is also applied. **It has not been trained, calibrated, or backtested; it is not a reliable win-probability model or suitable for wagering.** Missing player data returns "not enough data" rather than a zero contribution. A recent starting five is not a confirmed upcoming lineup, and substitutions reconstructed from play-by-play can be incomplete near quarter breaks.
 
 The current ESPN feeds do **not** establish who defends whom on a possession. The defensive assignment control is strictly hypothetical and uses limited defensive proxies (steals, blocks, rebounds). Dime can call the same roster and single-scenario endpoints, but does not independently generate statistical estimates.
 
@@ -125,12 +129,28 @@ For future production accuracy: ingest a licensed NBA play-by-play/lineup/defens
 
 ## Player Prop Intelligence & Parlay Explorer
 
-**Player Explorer** now uses the current-season ESPN game-by-game log rather than the career aggregate player summary. `GET /api/props?player=<ESPN_ID>` returns regular-season results only (up to 52), basic scoring/assist/rebound/three-point combinations, shooting efficiency, recent minutes, up to eight game-boxscore plus/minus entries, next scheduled opponent, opponent last-ten points allowed and current listed teammate injuries. It does not manufacture unavailable data.
+**Player Explorer** now uses the current-season ESPN game-by-game log rather than the career aggregate player summary. `GET /api/props?player=<ESPN_ID>` returns regular-season results only (up to 52), basic scoring/assist/rebound/three-point combinations, shooting efficiency, recent minutes, up to 20 game-boxscore plus/minus entries, next scheduled opponent, opponent last-ten points allowed and current listed teammate injuries. It does not manufacture unavailable data.
 
 The interactive dashboard supports PTS/REB/AST/3PM, PRA/PR/PA/RA, STL/BLK/STOCKS; last 5/10/20/season filters; over/under with user-editable line and push-aware historical hit rates; tappable game-log bars; descriptive form estimates and middle-50% ranges; and expandable player opportunity, matchup and defensive context.
 
-The **Parlay Explorer** keeps up to eight manually selected legs in local browser storage. Decimal and American prices are supplied manually by the user; there is no connected sportsbook or execution. It can show the combined entered decimal price and its implied break-even, the product of historical individual hit rates as an *independence reference only*, and observed same-game co-hits/pairwise sample correlations only when users' future legs share the same target game and there are at least five matching historical games.
+The **Parlay Explorer** keeps up to eight manually selected legs in local browser storage. Decimal and American prices are supplied manually by the user; there is no connected sportsbook or execution. It can show the combined entered decimal price and its implied break-even, the product of historical individual hit rates as an *independence reference only*, and observed same-game co-hits when future legs share the same target game and at least five historical games overlap, and pairwise correlations from at least ten shared historical games.
 
 These game-log hit rates and correlation summaries are **descriptive, not fitted or calibrated predictions**. A licensed provider would be necessary for real-time prop prices/line movement, possession tracking, official usage %, potential assists, rebound chances and properly adjusted player on/off data. Dime can read the same real game logs through the `getPlayerPropTrends` and `comparePropLegs` tools without inventing odds.
 
 Regression checks: `scripts/test-prop-analytics.mjs` and `scripts/check-player-props-source.mjs`.
+
+## Search discovery and brand metadata
+
+The public name is **Pick & Roll**. Its preferred Google title is `Pick & Roll`, with the description: "Understand the game. Anticipate what happens next. Live NBA intelligence that connects player performance, matchups, rotations and statistical projections in one place."
+
+Canonical homepage: `https://basketballreflexsystem.vercel.app/`. Public search discovery files: `/robots.txt` and `/sitemap.xml`. The homepage includes a visible heading and `WebSite` structured data, with matching Open Graph and Twitter previews. The public `/about` page contains model validation results and source definitions.
+
+Google can rewrite search-result titles and snippets, and indexing is not immediate. Use Google Search Console to verify the site, submit `https://basketballreflexsystem.vercel.app/sitemap.xml`, and request indexing for the canonical homepage. An eventual custom domain can replace this URL when configured.
+
+## Accuracy and quality
+
+- Historical team scoring-form evaluation: 346 held-out 2025–26 games; Brier score 0.184 and winner accuracy 72.8%. **This is not a validation of the full injury-adjusted production model.**
+- Current-season injuries and Player Explorer averages use the same regular-season game-log aggregation; starting-five snapshots explicitly identify their different recent-five window.
+- Scouting **Observations** show sample sizes and small-sample labels, separate from the win-probability estimate. Close pregame outcomes are shown as too close to call.
+- Feed checks display source timestamps. Live results have a stricter staleness threshold than completed-game/season data.
+- Weekly historical validation workflow: `.github/workflows/model-validation.yml`. Core correctness tests run on each commit under `.github/workflows/build.yml`.
