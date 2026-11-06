@@ -122,7 +122,51 @@ export async function POST(req){
       'Respond in short plain-text paragraphs, no Markdown, hashtags, code fences, or tables. Show numerical evidence and its sample size when useful. Usually 80–170 words.'
     ].join('\n');
     const output=streamText({model:MODEL,system,messages:turns,tools,stopWhen:stepCountIs(4),maxOutputTokens:900,abortSignal:req.signal});
-    return output.toTextStreamResponse({headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
+    // Wait for the first real text chunk before committing HTTP 200. Gateway
+    // billing/auth failures must be surfaced as actionable JSON errors.
+    const iterator=output.fullStream[Symbol.asyncIterator]();
+    let firstText='';
+    let firstError=null;
+    try{
+      for(let i=0;i<10000;i++){
+        const event=await iterator.next();
+        if(event.done)break;
+        if(event.value?.type==='error'){firstError=event.value.error;break;}
+        if(event.value?.type==='text-delta'){
+          firstText=event.value.text || event.value.textDelta || '';
+          if(firstText)break;
+        }
+      }
+    }catch(e){firstError=e;}
+    if(!firstText){
+      const message=String(firstError?.message||'AI provider returned no text');
+      const billing=/credit card|billing|payment method|customer_verification_required/i.test(message);
+      console.error('Dime model unavailable:',billing?'AI Gateway billing verification required':message.slice(0,250));
+      return NextResponse.json({error:billing
+        ?'Dime needs Vercel AI Gateway billing activation. Add a payment method in the Vercel AI Gateway dashboard to enable LLM answers.'
+        :'Dime could not reach its AI model. Please check AI Gateway access or try again later.'},{status:503,headers:{'Cache-Control':'no-store'}});
+    }
+    const encoder=new TextEncoder();
+    const stream=new ReadableStream({
+      async start(controller){
+        controller.enqueue(encoder.encode(firstText));
+        try{
+          while(true){
+            const event=await iterator.next();
+            if(event.done)break;
+            if(event.value?.type==='error')throw event.value.error;
+            if(event.value?.type==='text-delta'){
+              const chunk=event.value.text || event.value.textDelta || '';
+              if(chunk)controller.enqueue(encoder.encode(chunk));
+            }
+          }
+        }catch(e){
+          console.error('Dime stream interrupted:',String(e?.message||e).slice(0,200));
+          controller.enqueue(encoder.encode('\n\n[Dime lost the model connection. Please try again.]'));
+        }finally{controller.close();}
+      }
+    });
+    return new Response(stream,{headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
   }catch(e){
     console.error('Dime request failed:',e?.message);
     return NextResponse.json({error:'Dime is unavailable right now. Please try again.'},{status:500});
