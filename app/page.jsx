@@ -3,7 +3,8 @@
 import {useEffect,useState} from 'react';
 import IntelligencePanel from './IntelligencePanel';
 
-const POLL=30000;
+const POLL_LIVE=5000;
+const POLL_IDLE=20000;
 function dateET() {
   const p=Object.fromEntries(new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
   return p.year+p.month+p.day;
@@ -19,29 +20,37 @@ function dateLabel(d) {
 function api(view,params={}) {
   return '/api/nba?'+new URLSearchParams({view,...params}).toString();
 }
-function useRemote(url,interval=0) {
+function useRemote(url,interval=0,liveInterval=0) {
   const [state,setState]=useState({data:null,loading:!!url,error:''});
   const [revision,setRevision]=useState(0);
   useEffect(()=>{
     if(!url) {setState({data:null,loading:false,error:''});return;}
-    let mounted=true,controller=null;
+    let mounted=true,controller=null,lastData=null,lastFetched=0;
     async function load() {
+      lastFetched=Date.now();
       controller?.abort();
       controller=new AbortController();
       try {
         const response=await fetch(url,{cache:'no-store',signal:controller.signal});
         const body=await response.json();
         if(!response.ok) throw new Error(body.error || 'Request failed');
-        if(mounted) setState({data:body,loading:false,error:''});
+        if(mounted){lastData=body;setState({data:body,loading:false,error:''});}
       } catch(e) {
         if(e.name!=='AbortError' && mounted) setState(s=>({...s,loading:false,error:e.message}));
       }
     }
     setState({data:null,loading:true,error:''});
     load();
-    const timer=interval?setInterval(()=>{if(document.visibilityState==='visible')load();},interval):null;
-    return ()=>{mounted=false;controller?.abort();if(timer)clearInterval(timer);};
-  },[url,interval,revision]);
+    const timer=interval?setInterval(()=>{
+      const active=lastData?.games?.some(g=>g.status==='in');
+      const pace=active&&liveInterval?liveInterval:interval;
+      if(document.visibilityState==='visible' && Date.now()-lastFetched>=pace)load();
+    },1000):null;
+    const onFocus=()=>{if(document.visibilityState==='visible' && Date.now()-lastFetched>=5000)load();};
+    document.addEventListener('visibilitychange',onFocus);
+    window.addEventListener('focus',onFocus);
+    return ()=>{mounted=false;controller?.abort();if(timer)clearInterval(timer);document.removeEventListener('visibilitychange',onFocus);window.removeEventListener('focus',onFocus);};
+  },[url,interval,liveInterval,revision]);
   return {...state,refresh:()=>setRevision(v=>v+1)};
 }
 function Logo({team,size=36}) {
@@ -80,7 +89,7 @@ function Boxscore({selected,feed}) {
     {!feed.loading && !feed.error && !group?.rows?.length && <Notice>Player boxscore data isn't available yet. It usually appears around tip-off.</Notice>}
     {!!group?.rows?.length && <div className="table-scroll"><table className="box-table"><thead><tr><th>PLAYER</th>{cols.map(c=><th key={c}>{c}</th>)}</tr></thead><tbody>{group.rows.map((r,i)=><tr key={r.id||i}><td><strong>{r.name}</strong><small>{r.position}{r.jersey?' · #'+r.jersey:''}{r.didNotPlay?' · DNP':''}</small></td>{cols.map(c=><td key={c}>{r.stats[c] ?? '—'}</td>)}</tr>)}</tbody></table></div>}
     {!!teamStat?.stats?.length && <><div className="separator"/><h3>Team game statistics · {team?.abbreviation}</h3><div className="stat-grid">{teamStat.stats.slice(0,12).map((s,i)=><div key={i}><span>{s.label}</span><b>{s.value}</b></div>)}</div></>}
-    <p className="smallprint">ESPN game feed. Scoreboard and boxscores refresh every 30 seconds while the page is open. Actual publication delays vary.</p>
+    <p className="smallprint">Stats update as they are published by the data provider.</p>
   </section>;
 }
 function Games({date,setDate,score,gameId,setGameId,detail}) {
@@ -90,7 +99,7 @@ function Games({date,setDate,score,gameId,setGameId,detail}) {
   },[score.data?.fetchedAt,date]);
   const chosen=games.find(g=>g.id===gameId);
   const live=games.filter(g=>g.status==='in').length;
-  return <><div className="module-line"><div><span>LIVE GAME CENTER</span><h2>Scores & boxscores.</h2></div><button className="module-refresh" onClick={score.refresh}>Refresh scores ↻</button></div>
+  return <><div className="module-line"><div><span>LIVE GAME CENTER</span><h2>NBA Games</h2></div><button className="module-refresh" onClick={score.refresh}>Refresh scores ↻</button></div>
     <div className="date-nav"><button onClick={()=>setDate(d=>dateShift(d,-1))} aria-label="Previous date">←</button><div><small>NBA DATE · US EASTERN</small><strong>{dateLabel(date)}</strong></div><button onClick={()=>setDate(d=>dateShift(d,1))} aria-label="Next date">→</button><button onClick={()=>setDate(dateET())}>Today</button><span>{score.data ? (live ? live+' LIVE · ' : '') + games.length + ' games' : 'Waiting for feed'}</span></div>
     {score.loading && <Notice>Fetching the real NBA scoreboard…</Notice>}
     {score.error && <Notice error retry={score.refresh}>Unable to fetch games: {score.error}</Notice>}
@@ -110,10 +119,10 @@ function Matchup({teams,home,setHome,away,setAway,first,second}) {
   const a=teams.find(x=>x.id===home),b=teams.find(x=>x.id===away);
   const edgeA=first.data?.last5 ? +(first.data.last5.ppg-first.data.last5.oppg).toFixed(1) : null;
   const edgeB=second.data?.last5 ? +(second.data.last5.ppg-second.data.last5.oppg).toFixed(1) : null;
-  return <><div className="module-line"><div><span>TEAM FORM</span><h2>Recent results.</h2></div><small className="muted">Verified completed regular-season games</small></div>
+  return <><div className="module-line"><div><span>TEAM FORM</span><h2>Recent Form</h2></div><small className="muted">Verified completed regular-season games</small></div>
 
     <div className="compare-grid">{[[a,first,'HOME'],[b,second,'AWAY']].map(([team,feed,side])=><div className="panel padded" key={side}><div className="team-heading"><Logo team={team} size={48}/><div><span className="eyebrow">{side}</span><h2>{team?.name || 'Choose team'}</h2></div></div><Form data={feed.data} loading={feed.loading} error={feed.error} retry={feed.refresh}/></div>)}</div>
-    <div className="panel padded"><span className="eyebrow">HISTORICAL COMPARISON — NOT A PREDICTION</span><h2>Last-five point differential</h2><div className="diff-grid">{[[a,edgeA],[b,edgeB]].map(([t,v],i)=><div key={i}><span>{t?.abbreviation || '—'}</span><strong>{v==null?'—':(v>0?'+':'')+v.toFixed(1)}</strong></div>)}</div><p className="explainer">Points scored minus points allowed per game across the five latest completed games returned by ESPN. This is descriptive evidence, not a validated prediction model.</p></div>
+    <div className="panel padded"><span className="eyebrow">HISTORICAL COMPARISON — NOT A PREDICTION</span><h2>Last 5: Point Differential</h2><div className="diff-grid">{[[a,edgeA],[b,edgeB]].map(([t,v],i)=><div key={i}><span>{t?.abbreviation || '—'}</span><strong>{v==null?'—':(v>0?'+':'')+v.toFixed(1)}</strong></div>)}</div><p className="explainer">Points scored minus points allowed per game across the five latest completed games returned by ESPN. This is descriptive evidence, not a validated prediction model.</p></div>
   </>;
 }
 function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,stats}) {
@@ -125,7 +134,7 @@ function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,stats}) 
   const group=groups.find(g=>g.kind==='averages') || groups.find(g=>g.stats.some(s=>s.label.toUpperCase()==='PTS')) || groups[0];
   const important=['PTS','REB','AST','MIN','FG%','3P%'];
   const featured=important.map(label=>group?.stats.find(s=>s.label.toUpperCase()===label)).filter(Boolean);
-  return <><div className="module-line"><div><span>PLAYER EXPLORER</span><h2>Rosters & season stats.</h2></div></div>
+  return <><div className="module-line"><div><span>PLAYER EXPLORER</span><h2>Player Statistics</h2></div></div>
     <div className="players-layout"><section className="panel padded"><h2>Select a team</h2><label className="input-label">NBA TEAM<select value={teamId} onChange={e=>setTeamId(e.target.value)}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
       <div className="team-heading"><Logo team={selectedTeam} size={42}/><div><h3>{selectedTeam?.name || 'NBA'}</h3><small>{players.length} roster players returned</small></div></div>
       {roster.loading && <Notice>Loading team roster…</Notice>}
@@ -151,8 +160,9 @@ export default function Home() {
   const teamsFeed=useRemote(api('teams'),300000);
   const teams=teamsFeed.data?.teams || [];
   useEffect(()=>{if(!teams.length)return;const a=teams.find(x=>x.abbreviation==='BOS')?.id || teams[0].id;const b=teams.find(x=>x.abbreviation==='LAL')?.id || teams.find(x=>x.id!==a)?.id;setHome(x=>x||a);setAway(x=>x||b);setTeamId(x=>x||a);},[teamsFeed.data?.fetchedAt]);
-  const scores=useRemote(api('scoreboard',{date}),POLL);
-  const detail=useRemote(tab==='games' && gameId?api('game',{id:gameId}):null,POLL);
+  const scores=useRemote(api('scoreboard',{date}),POLL_IDLE,POLL_LIVE);
+  const selectedLiveGame=scores.data?.games?.find(x=>x.id===gameId);
+  const detail=useRemote(tab==='games' && gameId?api('game',{id:gameId}):null,selectedLiveGame?.status==='in'?POLL_LIVE:POLL_IDLE);
   const formA=useRemote(tab==='teams' && home?api('form',{team:home}):null,300000);
   const formB=useRemote(tab==='teams' && away?api('form',{team:away}):null,300000);
   const roster=useRemote(tab==='players' && teamId?api('roster',{team:teamId}):null,300000);
@@ -170,14 +180,14 @@ export default function Home() {
       <div className="site-header-inner">
         <a href="/" className="wordmark" aria-label="Pick and Roll, go to live games" onClick={e=>{e.preventDefault();setTab('games')}}><img src="/pick-roll-logo.svg" alt="Pick & Roll" /></a>
         <nav className="topnav" aria-label="Main navigation">{pages.map(p=><button key={p.id} className={'nav-item '+(tab===p.id?'active':'')} onClick={()=>setTab(p.id)} aria-current={tab===p.id?'page':undefined}>{p.label}</button>)}</nav>
-        <div className="header-actions"><span className="system-label"><i/> NBA DATA</span>{live?<span className="live-pulse">{live} LIVE NOW</span>:<span className="header-freshness">UPDATES EVERY 30S</span>}</div>
+        <div className="header-actions"><span className="system-label"><i/> NBA DATA</span>{live?<span className="live-pulse">{live} LIVE NOW</span>:null}</div>
       </div>
     </header>
     <main className="main-stage"><div className="content">
       <div className="workspace-meta"><span>PICK & ROLL <b>/</b> INTELLIGENCE</span><span>{pages.find(x=>x.id===tab)?.label.toUpperCase()}</span></div>
-      {tab==='teams'&&<div className="matchup-selector"><div className="module-line"><div><span>BUILD YOUR MATCHUP</span><h2>Choose the teams.</h2></div></div>    <section className="panel padded"><div className="heading-row"><h2>Pick your matchup</h2><small className="muted">Most recent 10 completed regular-season games</small></div><div className="team-pickers"><label>HOME TEAM<select value={home} onChange={e=>{setHome(e.target.value);if(e.target.value===away)setAway(home);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><span>VS</span><label>AWAY TEAM<select value={away} onChange={e=>{setAway(e.target.value);if(e.target.value===home)setHome(away);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label></div></section></div>}
+      {tab==='teams'&&<div className="matchup-selector"><div className="module-line"><div><span>BUILD YOUR MATCHUP</span><h2>Select Teams</h2></div></div>    <section className="panel padded"><div className="heading-row"><h2>Matchup</h2><small className="muted">Most recent 10 completed regular-season games</small></div><div className="team-pickers"><label>HOME TEAM<select value={home} onChange={e=>{setHome(e.target.value);if(e.target.value===away)setAway(home);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label><span>VS</span><label>AWAY TEAM<select value={away} onChange={e=>{setAway(e.target.value);if(e.target.value===home)setHome(away);}}><option value="">Select</option>{teams.map(t=><option key={t.id} value={t.id}>{t.name}</option>)}</select></label></div></section></div>}
+      {tab==='games'&&<Games date={date} setDate={setDate} score={scores} gameId={gameId} setGameId={setGameId} detail={detail}/>}
       <IntelligencePanel mode={tab} home={intelHome} away={intelAway} report={intelligence.data} loading={intelligence.loading} error={intelligence.error} onRefresh={intelligence.refresh} player={selectedPlayer} playerStats={stats.data} playerLoading={stats.loading} playerError={stats.error}/>
-            {tab==='games'&&<Games date={date} setDate={setDate} score={scores} gameId={gameId} setGameId={setGameId} detail={detail}/>}
       {tab==='teams'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}<Matchup teams={teams} home={home} setHome={setHome} away={away} setAway={setAway} first={formA} second={formB}/></>}
       {tab==='players'&&<>{teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}<PlayerView teams={teams} teamId={teamId} setTeamId={setTeamId} roster={roster} playerId={playerId} setPlayerId={setPlayerId} stats={stats}/></>}
       <footer className="site-footer"><span>PICK & ROLL <b>© 2026</b></span><span>Independent basketball analytics. Data availability varies. Not affiliated with the NBA.</span></footer>
