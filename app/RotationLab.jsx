@@ -3,6 +3,7 @@ import {useEffect,useMemo,useState} from 'react';
 import {evaluateRotation} from '../lib/rotation-analytics.js';
 import {probabilityMatchesScore} from '../lib/espn-live.js';
 import FeedStamp from './FeedStamp';
+import {trackEvent} from '../lib/analytics.js';
 
 const num=(v,d=1)=>v==null?'—':Number(v).toFixed(d);
 const delta=v=>v>0?'+':'';
@@ -64,9 +65,10 @@ export default function RotationLab({mode,data,loading,error,onRefresh,prior,liv
     const updated=current.map(id=>id===outId?inId:id);
     if(side==='home')setHomeFive(updated);else setAwayFive(updated);
     setHistory(items=>items.concat([{side,out:labels.get(outId),in:labels.get(inId)}]));
+    trackEvent('rotation_substitution_tested',{side,scenario_type:'substitution'});
     setOutId('');setInId('');
   }
-  const reset=()=>{setHomeFive([]);setAwayFive([]);setOutId('');setInId('');setAttackerId('');setDefenderId('');setHistory([]);};
+  const reset=()=>{setHomeFive([]);setAwayFive([]);setOutId('');setInId('');setAttackerId('');setDefenderId('');setHistory([]);trackEvent('rotation_reset',{scenario_type:'lineup'});};
   const changed=history.length||attackerId||defenderId;
   if(!home||!away)return <section className="rotation-section rotation-advanced">
     <div className="rotation-heading"><div><span className="intel-kicker">OPTIONAL DEEP DIVE</span><h2>Rotations & Full Rosters</h2></div></div>
@@ -130,7 +132,7 @@ export default function RotationLab({mode,data,loading,error,onRefresh,prior,liv
           <div className="rotation-fields"><label>ATTACKER<select value={attackerId}
             onChange={e=>{setAttackerId(e.target.value);setDefenderId('');}}><option value="">Choose an offensive player</option>
             {all.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-            <label>ASSIGNED DEFENDER<select value={defenderId} disabled={!attacker} onChange={e=>setDefenderId(e.target.value)}>
+            <label>ASSIGNED DEFENDER<select value={defenderId} disabled={!attacker} onChange={e=>{setDefenderId(e.target.value);if(e.target.value)trackEvent('rotation_defender_selected',{scenario_type:'defensive_matchup'});}}> 
               <option value="">Choose a defender</option>{opposing.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
             </select></label></div>
           <p className="rotation-usage"></p>
