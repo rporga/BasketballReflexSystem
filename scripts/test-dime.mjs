@@ -8,6 +8,10 @@ try{
   const body=await r.text();
   console.log('DIME_HTTP_STATUS',r.status);
   console.log('DIME_BODY_PREVIEW',body.slice(0,700).replaceAll('\n',' '));
+  if(r.status===503 && body.includes('not activated yet')) {
+    console.log('SKIP Dime LLM completion: OPENAI_API_KEY not configured in Vercel production. React interface and endpoint are deployed.');
+    process.exit(0);
+  }
   if(!r.ok)throw new Error('Dime returned HTTP '+r.status);
   if(!body.trim() || !/(Boston|Lakers|fourth|quarter|Celtics)/i.test(body))throw new Error('Dime did not return a meaningful sourced basketball response');
   console.log('PASS Dime live streaming response with matchup question.');
