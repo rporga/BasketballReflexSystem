@@ -109,7 +109,7 @@ export default function DimeChat({context}){
       <form className="dime-compose" onSubmit={e=>{e.preventDefault();send();}}>
         <div className="dime-compose-box"><textarea ref={input} rows={2} value={draft} maxLength={850} placeholder="Ask Dime anything about basketball..." onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}}} disabled={busy}/>
           <button type="submit" disabled={busy||!draft.trim()} aria-label="Send message to Dime">{busy?<span className="dime-spinner"/>:'↑'}</button></div>
-        <p>Dime uses current ESPN data. Predictions are experimental, not guarantees.</p>
+        <p>Dime · Powered by ESPN data</p>
       </form>
     </aside>
   </>;
