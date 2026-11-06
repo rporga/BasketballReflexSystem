@@ -154,3 +154,14 @@ Google can rewrite search-result titles and snippets, and indexing is not immedi
 - Scouting **Observations** show sample sizes and small-sample labels, separate from the win-probability estimate. Close pregame outcomes are shown as too close to call.
 - Feed checks display source timestamps. Live results have a stricter staleness threshold than completed-game/season data.
 - Weekly historical validation workflow: `.github/workflows/model-validation.yml`. Core correctness tests run on each commit under `.github/workflows/build.yml`.
+
+
+## Google Analytics 4
+
+Pick & Roll uses GA4 Measurement ID `G-88Q3PDQJF7` on the live Next.js site. The implementation is in `lib/analytics.js` and `app/AnalyticsConsent.jsx`. It **does not load Google's analytics script or send events before opt-in consent**. A lightweight first-visit choice is stored in local storage; visitors can change their choice using **Analytics preferences** in the footer or on the About page. Revoking consent disables analytics and reloads to remove any active Google script, with local analytics cookies expired.
+
+Recorded events (only after opt-in) include `section_view`, `game_selected`, `matchup_team_selected`, `player_selected`, `prop_category_selected`, `prop_window_selected`, `parlay_leg_added`, `parlay_leg_removed`, `parlay_cleared`, `rotation_substitution_tested`, `rotation_defender_selected`, `rotation_reset`, `dime_opened`, `dime_question_sent`, `dime_answer_received`, and `dime_answer_failed`. The tracker only accepts a restricted set of event names and predefined structured fields. It does not include prompts, message content, personal details, user-entered odds or query text.
+
+In GA4: open **Reports → Realtime**, visit the live website in a browser where analytics is allowed, and confirm a session appears; custom product events can be viewed in Realtime or Engagement/Events as Google processes them. Tracking is subject to consent, browser ad blockers, and GA4 processing delays.
+
+Regression test: `node scripts/test-analytics.mjs`.
