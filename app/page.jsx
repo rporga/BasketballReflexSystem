@@ -175,7 +175,7 @@ function PlayerView({teams,teamId,setTeamId,roster,playerId,setPlayerId,propsFee
         {propsFeed?.loading&&!d&&<Notice>Loading this season's game logs…</Notice>}
         {propsFeed?.error&&!d&&<Notice error retry={propsFeed.refresh}>{propsFeed.error}</Notice>}
         {d&&m?.sample===0&&<Notice>No current-season game logs yet.</Notice>}
-        {featured.length>0&&<><div className="heading-row"><h3>2026–27 Season</h3><small className="muted">{m.sample} games</small></div>
+        {featured.length>0&&<><div className="heading-row"><h3>{d?.season?String(d.season-1)+'–'+String(d.season).slice(-2):'Current'} Season</h3><small className="muted">{m.sample} games</small></div>
           <div className="player-highlights">{featured.map(([label,v])=><div key={label}><small>{label}</small><strong>{asNumber(v)}</strong></div>)}</div>
           <div className="stats-list">{extra.map(([label,v])=><div key={label}><span>{label}</span><b>{asNumber(v)}</b></div>)}</div></>}
         <p className="smallprint">ESPN · Regular-season game logs</p>
@@ -236,10 +236,6 @@ export default function Home() {
       {tab==='players'&&<>
         {teamsFeed.error&&<Notice error retry={teamsFeed.refresh}>{teamsFeed.error}</Notice>}
         <PlayerView teams={teams} teamId={teamId} setTeamId={setTeamId} roster={roster} playerId={playerId} setPlayerId={setPlayerId} propsFeed={propsFeed}/>
-        {selectedPlayer&&<div className="player-report-after-selection">
-          <IntelligencePanel key={selectedPlayer.id} mode="players" player={selectedPlayer} propsData={propsFeed.data}
-            playerLoading={propsFeed.loading} playerError={propsFeed.error}/>
-        </div>}
       </>}
       <footer className="site-footer"><span>PICK & ROLL <b>© 2026</b></span><span>Independent NBA analytics · Data: ESPN</span></footer>
     </div></main>
