@@ -1060,3 +1060,84 @@ html[data-theme="dark"] .dime-backdrop{background:rgba(0,0,0,.6)}
  .rotation-roster-row{flex-wrap:wrap}
  .rotation-roster-row>b{font-size:9px}
 }
+
+
+/* Selected-game scouting hero: live score + evolving forecast as one report. */
+.live-score-overview{border:1px solid var(--line);border-radius:17px;background:var(--bg);padding:18px 20px 13px;margin-bottom:22px;min-width:0}
+.live-score-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+.live-score-status{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:var(--paper);border:1px solid var(--line);color:var(--muted);letter-spacing:.08em;font-weight:830;font-size:9px}
+.live-score-status.active{color:var(--orange);background:var(--orange-wash);border-color:#e4580b40}
+.live-score-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,.75fr) minmax(0,1fr);align-items:center;gap:14px}
+.live-score-side{display:flex;align-items:center;gap:9px;min-width:0}
+.live-score-side img{width:42px;height:42px;object-fit:contain;flex:none}
+.live-score-side>div{display:flex;flex-direction:column;min-width:0;gap:2px}
+.live-score-side strong{font-size:13px;font-weight:850;letter-spacing:.02em;color:var(--ink)}
+.live-score-side span{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+.live-score-side b{font-size:clamp(24px,3vw,40px);font-variant-numeric:tabular-nums;letter-spacing:-.07em;font-weight:820;line-height:1.1;color:var(--ink);margin-left:auto}
+.live-score-side.home{justify-content:flex-end}
+.live-score-side.home b{margin-left:0;margin-right:auto}
+.live-score-side.home>div{text-align:right}
+.live-score-clock{display:flex;flex-direction:column;align-items:center;text-align:center;justify-content:center;gap:3px;padding:5px 0;border-inline:1px solid var(--line);min-height:48px}
+.live-score-clock strong{font-size:13px;color:var(--orange);font-weight:860;letter-spacing:-.012em}
+.live-score-clock>span{font-size:9px;line-height:1.4;color:var(--muted);max-width:135px}
+.live-quarters{display:flex;align-items:center;justify-content:space-between;gap:15px;border-top:1px solid var(--line);margin-top:17px;padding-top:12px}
+.live-quarters-label{font-weight:770;letter-spacing:.05em;font-size:9px;color:var(--muted)}
+.live-quarters-list{display:flex;gap:20px;flex-wrap:wrap}
+.live-quarters-row{display:flex;align-items:center;gap:9px}
+.live-quarters-row b{font-size:10px;color:var(--ink);min-width:29px}
+.live-quarters-row>span{display:flex;align-items:center;gap:4px;white-space:nowrap}
+.live-quarters-row small{font-size:9px;color:var(--muted)}
+.live-quarters-row strong{font-size:11px;font-variant-numeric:tabular-nums}
+.live-score-freshness{font-size:9.5px;line-height:1.6;color:var(--muted);margin:12px 0 0}
+.live-estimate-note{margin:14px 0 0;font-size:11px;color:var(--muted);line-height:1.7}
+.live-estimate-note b{font-weight:790;color:var(--ink)}
+.live-no-prob{padding:14px 15px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--muted);font-size:12px;line-height:1.65}
+.model-pregame-assumptions{border-top:1px solid var(--line);margin-top:18px;padding-top:1px}
+.boxscore-compact{margin:0;grid-column:1/-1}
+.boxscore-compact>.heading-row:first-child{margin-bottom:10px}
+.boxscore-compact .heading-row h2{font-size:21px;letter-spacing:-.045em}
+.boxscore-compact .heading-row h3{font-size:17px}
+.intelligence .boxscore-compact{background:var(--paper);border-color:var(--line)}
+html[data-theme="dark"] .live-score-overview{background:#252a31;border-color:var(--line)}
+html[data-theme="dark"] .live-score-clock{border-color:var(--line)}
+html[data-theme="dark"] .live-no-prob{background:#272c34;border-color:var(--line)}
+html[data-theme="dark"] .live-score-side strong,html[data-theme="dark"] .live-score-side b{color:var(--ink)}
+/* Keep back-to-top above Dime's launcher and the mobile tab bar. */
+.back-to-top{position:fixed;right:25px;bottom:106px;z-index:58;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  width:47px;height:47px;border-radius:15px;border:1px solid var(--line-strong);background:var(--paper);color:var(--ink);box-shadow:0 7px 24px rgba(0,0,0,.12);
+  font-size:10px;font-weight:790;touch-action:manipulation;transition:transform .16s ease,background .16s ease,border-color .16s ease}
+.back-to-top:hover{transform:translateY(-2px);background:var(--orange-wash);border-color:var(--orange);color:var(--orange)}
+.back-to-top:focus-visible{outline:3px solid var(--orange);outline-offset:3px}
+html[data-theme="dark"] .back-to-top{background:#272c34;border-color:#464c55;color:#e8eaf0;box-shadow:0 7px 27px #0005}
+html[data-theme="dark"] .back-to-top:hover{background:#39291f;color:#ff9562;border-color:#e4580b}
+@media(max-width:980px){
+  .live-score-layout{grid-template-columns:minmax(0,1fr) minmax(125px,.8fr) minmax(0,1fr)}
+  .live-score-side img{width:36px;height:36px}
+  .live-score-side span{display:none}
+  .live-quarters{flex-wrap:wrap}
+}
+@media(max-width:600px){
+  .live-score-overview{padding:13px 11px 11px;border-radius:13px;margin-bottom:17px}
+  .live-score-top{margin-bottom:12px}
+  .live-score-layout{grid-template-columns:minmax(0,1fr) minmax(93px,.9fr) minmax(0,1fr);gap:7px}
+  .live-score-side{gap:4px}
+  .live-score-side img{width:28px;height:28px}
+  .live-score-side strong{font-size:11px}
+  .live-score-side b{font-size:26px}
+  .live-score-clock strong{font-size:11px}
+  .live-score-clock>span{font-size:8px}
+  .live-quarters{gap:9px;margin-top:12px}
+  .live-quarters-list{gap:7px}
+  .live-quarters-row{gap:4px}
+  .live-quarters-label{font-size:8px}
+  .live-score-freshness{font-size:8.5px}
+  .boxscore-compact .heading-row h2{font-size:18px}
+  .back-to-top{right:15px;bottom:calc(162px + env(safe-area-inset-bottom,0px));width:43px;height:43px;border-radius:13px}
+}
+@media(max-width:390px){
+  .live-score-layout{grid-template-columns:minmax(0,1fr) 90px minmax(0,1fr);gap:5px}
+  .live-score-side img{width:24px;height:24px}
+  .live-score-side b{font-size:24px}
+  .back-to-top{right:12px}
+}
+@media(prefers-reduced-motion:reduce){.back-to-top{transition:none}}
