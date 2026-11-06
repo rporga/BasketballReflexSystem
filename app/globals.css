@@ -1391,3 +1391,12 @@ html[data-theme="dark"] .prop-bar-slot.selected .prop-bar{outline-color:#f1f1f1}
 .parlay-quoted-input label{display:flex;flex-direction:column;gap:5px;font-size:9px;font-weight:790;color:var(--muted);flex:0 1 140px;min-width:0}
 .parlay-quoted-input input,.parlay-quoted-input select{height:39px;border:1px solid var(--line-strong);border-radius:9px;background:var(--paper);color:var(--ink);padding:0 10px;width:100%;font-size:12px}
 .parlay-quoted-input>span{flex:1 1 170px;font-size:10px;color:var(--muted);line-height:1.5}
+
+/* Observed first-quarter five-man samples */
+.rotation-observed-team{padding:5px 0 10px}
+.rotation-observed-team h4{font-size:12px;font-weight:800;letter-spacing:-.02em;margin:7px 0;color:var(--ink)}
+.rotation-observed-row{display:flex;align-items:center;gap:8px 14px;padding:9px 0;border-top:1px solid var(--line);font-size:10px}
+.rotation-observed-row>span{min-width:0;flex:1;color:var(--ink);line-height:1.5}
+.rotation-observed-row>small{color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.rotation-observed-row>strong{font-weight:820;min-width:60px;text-align:right;color:var(--orange);font-variant-numeric:tabular-nums}
+@media(max-width:600px){.rotation-observed-row{flex-wrap:wrap}.rotation-observed-row>span{flex-basis:100%}}
