@@ -4,6 +4,7 @@ import {useEffect,useMemo,useState} from 'react';
 import {PROP_DEFS,aggregate,shooting,forecast,comparison,decimalOdds} from '../lib/prop-analytics.js';
 import FeedStamp from './FeedStamp';
 import {trackEvent} from '../lib/analytics.js';
+import {parsePropQuery,propQuery,playersPath} from '../lib/deep-links.js';
 
 const STORAGE='pick-roll-parlay-v2';
 const LEGACY_STORAGE='pick-roll-parlay-v1';
@@ -194,6 +195,25 @@ export default function PlayerPropHub({player,team,feed}){
  const [odds,setOdds]=useState(''),[oddsFormat,setOddsFormat]=useState('decimal');
  const [legs,setLegs]=useState([]),[loaded,setLoaded]=useState(false),[message,setMessage]=useState('');
  const [details,setDetails]=useState(false);
+ useEffect(()=>{
+   const sync=()=>{
+     const state=parsePropQuery(window.location.search);
+     setProp(state.prop);setWindowSize(state.windowSize);
+   };
+   sync();
+   window.addEventListener('popstate',sync);
+   return ()=>window.removeEventListener('popstate',sync);
+ },[player?.id]);
+ const updatePropURL=(nextProp,nextWindow)=>{
+   if(typeof window==='undefined')return;
+   const path=playersPath(player?.id);
+   if(path!==window.location.pathname)return;
+   const query=propQuery(nextProp,nextWindow);
+   const url=path+(query?'?'+query:'');
+   if(window.location.pathname+window.location.search!==url)
+     window.history.replaceState(window.history.state,'',url);
+ };
+
  const d=feed?.data?.playerId===player?.id?feed.data:null;
  const games=d?.games||[];
  const count=games.length;
@@ -274,7 +294,7 @@ export default function PlayerPropHub({player,team,feed}){
        <div className="prop-player-head"><div><strong>{title}</strong><span>{team?.abbreviation||d.team} · {count} current-season games</span></div>
          <div className="prop-player-head-game">{next?<>NEXT GAME <b>{next.home?'vs':'@'} {next.abbreviation}</b><span>{niceDate(next.date)}</span></>:'UPCOMING GAME UNAVAILABLE'}</div></div>
        <div className="prop-category-scroll"><div className="prop-categories" aria-label="Prop categories">
-         {CORE.map(k=><button key={k} type="button" aria-pressed={prop===k} className={prop===k?'active':''} onClick={()=>{setProp(k);trackEvent('prop_category_selected',{prop:k});}}>{k}</button>)}
+         {CORE.map(k=><button key={k} type="button" aria-pressed={prop===k} className={prop===k?'active':''} onClick={()=>{setProp(k);updatePropURL(k,windowSize);trackEvent('prop_category_selected',{prop:k});}}>{k}</button>)}
        </div></div>
        <div className="prop-toolbar">
          <div className="prop-which"><span>PROP</span><strong>{PROP_DEFS[prop].label}</strong></div>
@@ -282,7 +302,7 @@ export default function PlayerPropHub({player,team,feed}){
            {['over','under'].map(x=><button type="button" key={x} className={x===side?'active':''} onClick={()=>setSide(x)} aria-pressed={x===side}>{x==='over'?'Over':'Under'}</button>)}
          </div>
          <label className="prop-line-input">LINE<input aria-label="Prop line" type="number" min=".5" max="400" step=".5" inputMode="decimal" value={line} onChange={e=>setLine(e.target.value)}/></label>
-         <SelectWindow value={windowSize} onChange={v=>{setWindowSize(v);trackEvent('prop_window_selected',{prop,sample_window:v});}}/>
+         <SelectWindow value={windowSize} onChange={v=>{setWindowSize(v);updatePropURL(prop,v);trackEvent('prop_window_selected',{prop,sample_window:v});}}/>
        </div>
        <div className="prop-summary-row">
          <div className="prop-primary-hit"><span>HISTORICAL {direction.toUpperCase()} HIT RATE</span>
