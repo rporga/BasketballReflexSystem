@@ -54,3 +54,6 @@ jobs:
 
       - name: Validate critical NBA accuracy fixes
         run: node scripts/test-accuracy-regressions.mjs
+
+      - name: Validate observed five-man lineup stints
+        run: node scripts/test-lineup-stints.mjs
