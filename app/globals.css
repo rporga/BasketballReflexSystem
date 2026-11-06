@@ -1527,3 +1527,10 @@ a.game-card:focus-visible,.roster-list a:focus-visible{outline:2px solid var(--o
 html[data-theme="dark"] .roster-list a{background:var(--paper);color:var(--ink);border-top-color:var(--line)}
 html[data-theme="dark"] .roster-list a:hover,html[data-theme="dark"] .roster-list a.active{background:#30251e}
 html[data-theme="dark"] .roster-list a>span:nth-child(2) strong{color:#f0f0ee}
+
+
+/* Next.js Link navigation keeps the existing tab styles and keyboard focus. */
+a.nav-item,a.mobile-tab{color:inherit;text-decoration:none}
+a.nav-item{display:flex;align-items:center;justify-content:center}
+a.nav-item:hover,a.mobile-tab:hover{text-decoration:none}
+a.nav-item:focus-visible,a.mobile-tab:focus-visible{outline:2px solid var(--orange);outline-offset:-2px}
