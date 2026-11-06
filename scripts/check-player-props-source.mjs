@@ -8,5 +8,5 @@ const raw=await response.json();
 assert.ok(Array.isArray(raw.labels)&&raw.labels.includes('PTS')&&raw.labels.includes('3PT'));
 const games=parseGamelog(raw,season);
 assert.ok(games.length>=1,'Expected at least one 2026–27 regular season player game');
-assert.ok(games.every(g=>g.stats.PTS!=null&&g.stats['3PM']!=null&&g.date.startsWith('2026-')||g.date?.startsWith('2027-')));
+assert.ok(games.every(g=>g.stats.PTS!=null&&g.stats['3PM']!=null&&(g.date.startsWith('2026-')||g.date.startsWith('2027-'))));
 console.log('PASS ESPN player game log feed: '+games.length+' 2026–27 regular-season games, including scoring, rebounds, assists and three-point makes');
