@@ -1383,3 +1383,11 @@ html[data-theme="dark"] .prop-bar-slot.selected .prop-bar{outline-color:#f1f1f1}
   .players-layout .panel{padding:17px}
   .players-layout .input-label{margin:14px 0}
 }
+
+/* Prop line ties do not count as wins or losses */
+.prop-bar.push{background:#a67a2f}
+.prop-bars-key i.push{background:#a67a2f}
+.parlay-quoted-input{display:flex;flex-wrap:wrap;gap:9px;align-items:end;margin-top:13px}
+.parlay-quoted-input label{display:flex;flex-direction:column;gap:5px;font-size:9px;font-weight:790;color:var(--muted);flex:0 1 140px;min-width:0}
+.parlay-quoted-input input,.parlay-quoted-input select{height:39px;border:1px solid var(--line-strong);border-radius:9px;background:var(--paper);color:var(--ink);padding:0 10px;width:100%;font-size:12px}
+.parlay-quoted-input>span{flex:1 1 170px;font-size:10px;color:var(--muted);line-height:1.5}
